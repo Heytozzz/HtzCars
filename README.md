@@ -21,4 +21,4 @@ The mod jar is written to `build/libs/`. Versions and mod metadata are defined i
 
 ## License
 
-Not decided yet (`mod_license` in `gradle.properties` is a placeholder).
+All Rights Reserved. Personal use and inclusion of the unmodified official jar in modpacks are allowed; redistributing the mod on its own, distributing modified versions and claiming the credits are not. See `LICENSE` for the full terms.

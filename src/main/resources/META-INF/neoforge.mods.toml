@@ -9,6 +9,9 @@ modId = "${mod_id}"
 version = "${mod_version}"
 displayName = "${mod_name}"
 authors = "${mod_authors}"
+description = '''
+HtzCars is a racing mod built around small cars. Lay out a circuit with a start line and a finish line, send racers through checkpoints, and make the course harder with obstacles and modifiers that change how each race plays out.
+'''
 
 [[dependencies.${mod_id}]]
 modId = "neoforge"
