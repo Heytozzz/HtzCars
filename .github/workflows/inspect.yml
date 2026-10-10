@@ -12,7 +12,7 @@ on:
           - findClass
           - inspectApi
       value:
-        description: 'findClass: simple class name (e.g. Mod). inspectApi: fully qualified class name (nested classes with $).'
+        description: 'findClass: simple class name (e.g. Mod). inspectApi: fully qualified class name (nested classes with $). Several values can be separated by commas.'
         required: true
         type: string
 
@@ -43,11 +43,23 @@ jobs:
           INSPECT_VALUE: ${{ inputs.value }}
         run: |
           # The value is passed through an environment variable, so "$" in nested class names needs no escaping.
-          if [ "$INSPECT_TASK" = "inspectApi" ]; then
-            gradle inspectApi "-PclassName=$INSPECT_VALUE" --console=plain --stacktrace
-          elif [ "$INSPECT_TASK" = "findClass" ]; then
-            gradle findClass "-PsimpleName=$INSPECT_VALUE" --console=plain --stacktrace
-          else
+          # Several values separated by commas are inspected one after another; a failure does not stop the others.
+          if [ "$INSPECT_TASK" != "inspectApi" ] && [ "$INSPECT_TASK" != "findClass" ]; then
             echo "Unknown task: $INSPECT_TASK" >&2
             exit 1
           fi
+          status=0
+          IFS=',' read -ra VALUES <<< "$INSPECT_VALUE"
+          for raw in "${VALUES[@]}"; do
+            value="$(echo "$raw" | xargs)"
+            if [ -z "$value" ]; then
+              continue
+            fi
+            echo "##### $INSPECT_TASK: $value"
+            if [ "$INSPECT_TASK" = "inspectApi" ]; then
+              gradle inspectApi "-PclassName=$value" --console=plain -q || status=1
+            else
+              gradle findClass "-PsimpleName=$value" --console=plain -q || status=1
+            fi
+          done
+          exit $status
