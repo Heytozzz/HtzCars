@@ -26,10 +26,116 @@ jobs:
         with:
           gradle-version: '8.14.3' # Pinned. Quotes are required so YAML does not parse it as a number.
 
+      # TEMPORARY: API inspection step. Remove it (and re-enable the build below) once its results are no longer needed.
+      # One entry per line. Formats:
+      #   SimpleName@package.prefix#regex   the class is looked up by simple name (findClass) and only matches
+      #                                     whose full name starts with the prefix are inspected
+      #   fully.qualified.Name#regex        the class is inspected directly
+      # "#regex" is optional: with it, only the public/protected fields and methods whose line matches are printed
+      # (constructors are always printed, private members never).
+      - name: Inspect APIs (TEMPORARY)
+        env:
+          INSPECT_ENTRIES: |-
+            EntityModel@net.minecraft.client.#\.(renderToBuffer|setupAnim|renderType)\(
+            Model@net.minecraft.client.model.#\.(renderToBuffer|renderType)\(
+            ModelPart@net.minecraft.client.#\.(render|getChild|setPos|setRotation|xRot|yRot|zRot)(\(|$)
+            MeshDefinition@net.minecraft.client.#\.getRoot\(
+            PartDefinition@net.minecraft.client.#\.(addOrReplaceChild|getChild)\(
+            CubeListBuilder@net.minecraft.client.#\.(create|texOffs|addBox|mirror)\(
+            PartPose@net.minecraft.client.#\.(offset|offsetAndRotation|rotation|ZERO)(\(|$)
+            CubeDeformation@net.minecraft.client.#\.NONE$
+            LayerDefinition@net.minecraft.client.#\.create\(
+            ModelLayerLocation@net.minecraft.client.
+            EntityRenderer@net.minecraft.client.#\.(render|getTextureLocation)\(
+            EntityRendererProvider@net.minecraft.client.
+            EntityRendererProvider$Context@net.minecraft.client.#\.(bakeLayer|getModelSet)\(
+            RegisterRenderers@net.neoforged.neoforge.client.
+            RegisterLayerDefinitions@net.neoforged.neoforge.client.
+            RenderType@net.minecraft.client.#\.(entityCutoutNoCull|entityCutout|entityTranslucent)\(
+            MultiBufferSource@net.minecraft.client.#\.getBuffer\(
+            PoseStack@com.mojang.#\.(pushPose|popPose|translate|scale|mulPose)\(
+            OverlayTexture@net.minecraft.client.#\.NO_OVERLAY$
+            Axis@com.mojang.
+            RegisterClientExtensionsEvent@net.neoforged.neoforge.client.
+            IClientItemExtensions@net.neoforged.neoforge.client.#\.getCustomRenderer\(
+            BlockEntityWithoutLevelRenderer@net.minecraft.client.#\.(renderByItem|onResourceManagerReload)\(
+            Minecraft@net.minecraft.client.#\.(getInstance|getBlockEntityRenderDispatcher|getEntityModels)\(
+            EntityModelSet@net.minecraft.client.#\.bakeLayer\(
+            DataComponentHolder@net.minecraft.core.component.#\.(get|getOrDefault)\(
+            Mth@net.minecraft.util.#\.(rotLerp|lerp)\(
+            net.minecraft.world.entity.Entity#\.(getYRot|getXRot)\(|\.yRotO$|\.xRotO$
+            net.neoforged.api.distmarker.Dist#\.CLIENT$
+        run: |
+          status=0
+
+          inspect_class() {
+            local class="$1" regex="$2" out
+            echo "##### inspectApi: $class"
+            # "< /dev/null" so gradle does not consume the entries read by the caller loop.
+            if out="$(gradle inspectApi "-PclassName=$class" --console=plain -q 2>&1 < /dev/null)"; then
+              echo "$out" | RE="$regex" awk '
+                BEGIN { re = ENVIRON["RE"]; sec = ""; shown = 0; total = 0 }
+                /^=== / || /^Superclass:/ { print; next }
+                /^(Interfaces|Constructors|Fields|Methods):/ { sec = $0; sub(/:$/, "", sec); print; next }
+                sec == "Interfaces" { print; next }
+                sec == "Constructors" { if ($0 ~ /^  (public|protected)/) print; next }
+                $0 ~ /^  (public|protected)/ { total++; if (re == "" || $0 ~ re) { print; shown++ } }
+                END { print "(" shown " of " total " public/protected fields and methods shown)" }
+              '
+            else
+              status=1
+              echo "FAILED: $class"
+              echo "$out" | grep -m3 -E 'Class not found|Could not load|went wrong|Exception' || true
+            fi
+          }
+
+          while IFS= read -r entry; do
+            entry="$(echo "$entry" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+            if [ -z "$entry" ]; then
+              continue
+            fi
+            spec="${entry%%#*}"
+            regex=""
+            if [ "$spec" != "$entry" ]; then
+              regex="${entry#*#}"
+            fi
+            name="${spec%%@*}"
+            prefix=""
+            if [ "$name" != "$spec" ]; then
+              prefix="${spec#*@}"
+            fi
+            case "$name" in
+              *.*)
+                inspect_class "$name" "$regex"
+                ;;
+              *)
+                echo "##### findClass: $name (prefix: $prefix)"
+                found="$(gradle findClass "-PsimpleName=$name" --console=plain -q 2>&1 < /dev/null | grep -E '^  [A-Za-z_]' | sed 's/^  //' || true)"
+                matched=0
+                for candidate in $found; do
+                  case "$candidate" in
+                    "$prefix"*)
+                      matched=1
+                      inspect_class "$candidate" "$regex"
+                      ;;
+                  esac
+                done
+                if [ "$matched" -eq 0 ]; then
+                  status=1
+                  echo "NO MATCH for $name with prefix $prefix. Candidates: ${found:-none}"
+                fi
+                ;;
+            esac
+          done <<< "$INSPECT_ENTRIES"
+          exit $status
+
+      # TEMPORARILY DISABLED to save time while inspecting the API. Remove the "if: false" lines to re-enable.
       - name: Build
+        if: ${{ false }}
         run: gradle build --stacktrace
 
       - name: Upload jars
+        if: ${{ false }}
         uses: actions/upload-artifact@v4
         with:
           name: htzcars-jars
