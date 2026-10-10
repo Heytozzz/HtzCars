@@ -26,80 +26,10 @@ jobs:
         with:
           gradle-version: '8.14.3' # Pinned. Quotes are required so YAML does not parse it as a number.
 
-      # TEMPORARY: API inspection step. Remove it (and re-enable the build below) once its results are no longer needed.
-      # One entry per line: "fully.qualified.Name" or "fully.qualified.Name#regex". With a regex, only the public/protected
-      # fields and methods whose line matches it are printed (constructors are always printed). Private members are never printed.
-      - name: Inspect APIs (TEMPORARY)
-        env:
-          INSPECT_ENTRIES: |-
-            net.neoforged.neoforge.registries.DeferredRegister#\.(create|register)[A-Za-z]*\(
-            net.neoforged.neoforge.registries.DeferredRegister$Items#\.register[A-Za-z]*\(
-            net.neoforged.neoforge.registries.DeferredRegister$DataComponents#\.register[A-Za-z]*\(
-            net.neoforged.neoforge.registries.DeferredHolder#\.(get|value|getId|create|isBound)\(
-            net.minecraft.world.entity.EntityType#\.(create|spawn|getDimensions|getDescriptionId)\(
-            net.minecraft.world.entity.EntityType$Builder
-            net.minecraft.world.entity.EntityType$EntityFactory
-            net.minecraft.world.entity.MobCategory#\.MISC$
-            net.minecraft.world.entity.Entity#\.(defineSynchedData|readAdditionalSaveData|addAdditionalSaveData|getEntityData|getType|getPickResult|isPickable|getAddEntityPacket|getDimensions)\(|\.entityData$
-            net.minecraft.network.syncher.SynchedEntityData#\.(defineId|get|set)\(
-            net.minecraft.network.syncher.SynchedEntityData$Builder
-            net.minecraft.network.syncher.EntityDataAccessor
-            net.minecraft.network.syncher.EntityDataSerializers#\.(INT|BYTE|BOOLEAN)$
-            net.minecraft.world.item.Item#\.(getDescriptionId|useOn)\(
-            net.minecraft.world.item.Item$Properties#\.(component|stacksTo)\(
-            net.minecraft.world.item.ItemStack#\.(set|get|getOrDefault|has|copy|getItem)\(
-            net.minecraft.world.item.DyeColor#\.(CODEC|STREAM_CODEC|WHITE)$|\.(byId|getId|getName|getTextureDiffuseColor|getSerializedName)\(
-            net.minecraft.core.component.DataComponentType
-            net.minecraft.core.component.DataComponentType$Builder
-            net.minecraft.world.item.CreativeModeTab#\.builder\(
-            net.minecraft.world.item.CreativeModeTab$Builder
-            net.minecraft.world.item.CreativeModeTab$Output
-            net.minecraft.world.item.CreativeModeTab$DisplayItemsGenerator
-            net.minecraft.world.item.CreativeModeTab$ItemDisplayParameters
-            net.minecraft.core.registries.Registries#\.(CREATIVE_MODE_TAB|ENTITY_TYPE|ITEM|DATA_COMPONENT_TYPE)$
-            net.minecraft.resources.ResourceLocation#\.(fromNamespaceAndPath|withDefaultNamespace|parse|getPath|getNamespace)\(
-            net.minecraft.network.chat.Component#\.(translatable|literal)\(
-            net.minecraft.nbt.CompoundTag#\.(putInt|getInt|putString|getString|putBoolean|getBoolean|contains)\(
-            net.minecraft.network.codec.ByteBufCodecs#\.(VAR_INT|INT|BYTE|BOOL)$
-        run: |
-          status=0
-          while IFS= read -r entry; do
-            entry="$(echo "$entry" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-            if [ -z "$entry" ]; then
-              continue
-            fi
-            class="${entry%%#*}"
-            regex=""
-            if [ "$class" != "$entry" ]; then
-              regex="${entry#*#}"
-            fi
-            echo "##### inspectApi: $class"
-            # "< /dev/null" so gradle does not consume the entries read by this loop.
-            if out="$(gradle inspectApi "-PclassName=$class" --console=plain -q 2>&1 < /dev/null)"; then
-              echo "$out" | RE="$regex" awk '
-                BEGIN { re = ENVIRON["RE"]; sec = ""; shown = 0; total = 0 }
-                /^=== / || /^Superclass:/ { print; next }
-                /^(Interfaces|Constructors|Fields|Methods):/ { sec = $0; sub(/:$/, "", sec); print; next }
-                sec == "Interfaces" { print; next }
-                sec == "Constructors" { if ($0 ~ /^  (public|protected)/) print; next }
-                $0 ~ /^  (public|protected)/ { total++; if (re == "" || $0 ~ re) { print; shown++ } }
-                END { print "(" shown " of " total " public/protected fields and methods shown)" }
-              '
-            else
-              status=1
-              echo "FAILED: $class"
-              echo "$out" | grep -m3 -E 'Class not found|Could not load|went wrong|Exception' || true
-            fi
-          done <<< "$INSPECT_ENTRIES"
-          exit $status
-
-      # TEMPORARILY DISABLED to save time while inspecting the API. Remove the "if: false" lines to re-enable.
       - name: Build
-        if: ${{ false }}
         run: gradle build --stacktrace
 
       - name: Upload jars
-        if: ${{ false }}
         uses: actions/upload-artifact@v4
         with:
           name: htzcars-jars

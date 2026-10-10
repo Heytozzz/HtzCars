@@ -1,0 +1,11 @@
+{
+  "itemGroup.htzcars.main": "HtzCars",
+  "item.htzcars.trail": "Trail",
+  "item.htzcars.circuit": "Circuit",
+  "item.htzcars.frost": "Frost",
+  "item.htzcars.tide": "Tide",
+  "entity.htzcars.trail": "Trail",
+  "entity.htzcars.circuit": "Circuit",
+  "entity.htzcars.frost": "Frost",
+  "entity.htzcars.tide": "Tide"
+}
