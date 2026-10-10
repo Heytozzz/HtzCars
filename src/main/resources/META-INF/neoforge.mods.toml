@@ -1,4 +1,5 @@
-# Placeholders ${...} are filled from gradle.properties by processResources (see build.gradle).
+# Placeholders are filled from gradle.properties by processResources (see build.gradle).
+# Note: the whole file is processed as a template, so do not write dollar-brace text in comments.
 modLoader = "javafml"
 loaderVersion = "${loader_version_range}"
 license = "${mod_license}"
