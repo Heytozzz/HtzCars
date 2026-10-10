@@ -1,0 +1,53 @@
+# TEMPORARY workflow: runs the temporary Gradle tasks inspectApi / findClass and prints the result in the log.
+name: Inspect API
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Gradle task to run'
+        required: true
+        type: choice
+        options:
+          - findClass
+          - inspectApi
+      value:
+        description: 'findClass: simple class name (e.g. Mod). inspectApi: fully qualified class name (nested classes with $).'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Run inspection task
+        env:
+          INSPECT_TASK: ${{ inputs.task }}
+          INSPECT_VALUE: ${{ inputs.value }}
+        run: |
+          # The value is passed through an environment variable, so "$" in nested class names needs no escaping.
+          if [ "$INSPECT_TASK" = "inspectApi" ]; then
+            gradle inspectApi "-PclassName=$INSPECT_VALUE" --console=plain --stacktrace
+          elif [ "$INSPECT_TASK" = "findClass" ]; then
+            gradle findClass "-PsimpleName=$INSPECT_VALUE" --console=plain --stacktrace
+          else
+            echo "Unknown task: $INSPECT_TASK" >&2
+            exit 1
+          fi
