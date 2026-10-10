@@ -26,34 +26,39 @@ jobs:
         with:
           gradle-version: '8.14.3' # Pinned. Quotes are required so YAML does not parse it as a number.
 
-      # TEMPORARY: API inspection steps. Remove them (and re-enable the build below) once their results are no longer needed.
-      - name: Find classes (TEMPORARY)
-        env:
-          INSPECT_VALUES: >-
-            DeferredRegister, DeferredHolder, EntityType, MobCategory, Entity, Level, Item, ItemStack, Items,
-            Registries, BuiltInRegistries, ResourceLocation, DyeColor, DataComponents, DataComponentType,
-            SynchedEntityData, EntityDataAccessor, EntityDataSerializers, CompoundTag, CreativeModeTab,
-            CreativeModeTabs, BuildCreativeModeTabContentsEvent, Component, Dist, EventBusSubscriber,
-            FMLEnvironment, Codec, StreamCodec, ByteBufCodecs
-        run: |
-          # Values are separated by commas; a failure does not stop the others.
-          status=0
-          IFS=',' read -ra VALUES <<< "$INSPECT_VALUES"
-          for raw in "${VALUES[@]}"; do
-            value="$(echo "$raw" | xargs)"
-            if [ -z "$value" ]; then
-              continue
-            fi
-            echo "##### findClass: $value"
-            gradle findClass "-PsimpleName=$value" --console=plain -q || status=1
-          done
-          exit $status
-
+      # TEMPORARY: API inspection step. Remove it (and re-enable the build below) once its results are no longer needed.
       - name: Inspect APIs (TEMPORARY)
-        if: ${{ !cancelled() }}
         env:
           INSPECT_VALUES: >-
-            net.neoforged.fml.common.Mod, net.neoforged.bus.api.IEventBus
+            net.neoforged.neoforge.registries.DeferredRegister,
+            net.neoforged.neoforge.registries.DeferredRegister$Items,
+            net.neoforged.neoforge.registries.DeferredRegister$DataComponents,
+            net.neoforged.neoforge.registries.DeferredHolder,
+            net.minecraft.world.entity.EntityType,
+            net.minecraft.world.entity.EntityType$Builder,
+            net.minecraft.world.entity.EntityType$EntityFactory,
+            net.minecraft.world.entity.MobCategory,
+            net.minecraft.world.entity.Entity,
+            net.minecraft.network.syncher.SynchedEntityData,
+            net.minecraft.network.syncher.SynchedEntityData$Builder,
+            net.minecraft.network.syncher.EntityDataAccessor,
+            net.minecraft.network.syncher.EntityDataSerializers,
+            net.minecraft.world.item.Item,
+            net.minecraft.world.item.Item$Properties,
+            net.minecraft.world.item.ItemStack,
+            net.minecraft.world.item.DyeColor,
+            net.minecraft.core.component.DataComponentType,
+            net.minecraft.core.component.DataComponentType$Builder,
+            net.minecraft.world.item.CreativeModeTab,
+            net.minecraft.world.item.CreativeModeTab$Builder,
+            net.minecraft.world.item.CreativeModeTab$Output,
+            net.minecraft.world.item.CreativeModeTab$DisplayItemsGenerator,
+            net.minecraft.world.item.CreativeModeTab$ItemDisplayParameters,
+            net.minecraft.core.registries.Registries,
+            net.minecraft.resources.ResourceLocation,
+            net.minecraft.network.chat.Component,
+            net.minecraft.nbt.CompoundTag,
+            net.minecraft.network.codec.ByteBufCodecs
         run: |
           # Fully qualified names, separated by commas (nested classes with $); a failure does not stop the others.
           status=0
