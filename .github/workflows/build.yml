@@ -35,3 +35,21 @@ jobs:
           name: htzcars-jars
           path: build/libs/*.jar
           if-no-files-found: error
+
+      # TEMPORARY steps: API inspection. Remove them once the main class is verified.
+      # "if: always()" makes them run even if the build step failed, so their output is always in the log.
+      - name: "[TEMP] findClass Mod"
+        if: always()
+        run: gradle findClass -PsimpleName=Mod --console=plain --stacktrace
+
+      - name: "[TEMP] findClass ModContainer"
+        if: always()
+        run: gradle findClass -PsimpleName=ModContainer --console=plain --stacktrace
+
+      - name: "[TEMP] findClass IEventBus"
+        if: always()
+        run: gradle findClass -PsimpleName=IEventBus --console=plain --stacktrace
+
+      - name: "[TEMP] findClass Logger"
+        if: always()
+        run: gradle findClass -PsimpleName=Logger --console=plain --stacktrace
