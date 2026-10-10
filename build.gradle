@@ -1,0 +1,143 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+neoForge {
+    version = neo_version
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+        }
+    }
+
+    mods {
+        create(mod_id) {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// Fill the ${...} placeholders of META-INF/neoforge.mods.toml from gradle.properties.
+tasks.named('processResources').configure {
+    def replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand replaceProperties
+    }
+}
+
+// ---------------------------------------------------------------------------
+// TEMPORARY TASKS - API inspection helpers. Remove them once they are no longer needed.
+// Both depend on "createMinecraftArtifacts" so the Minecraft jar exists on disk.
+// ---------------------------------------------------------------------------
+
+// TEMPORARY: usage: gradle inspectApi -PclassName=<fully.qualified.ClassName>
+// Prints superclass, interfaces and the members DECLARED in that exact class.
+tasks.register('inspectApi') {
+    group = 'temporary'
+    description = 'TEMPORARY: prints declared members of a class (-PclassName=<fully.qualified.Name>).'
+    dependsOn 'createMinecraftArtifacts'
+
+    doLast {
+        if (!project.hasProperty('className')) {
+            throw new GradleException('Missing -PclassName=<fully.qualified.ClassName>')
+        }
+        String className = project.property('className') as String
+        URL[] urls = sourceSets.main.compileClasspath.files.collect { it.toURI().toURL() } as URL[]
+        URLClassLoader loader = new URLClassLoader(urls, ClassLoader.getPlatformClassLoader())
+        try {
+            Class<?> clazz = Class.forName(className, false, loader)
+            println "=== ${clazz.name} ==="
+            println "Superclass: ${clazz.genericSuperclass}"
+            println "Interfaces:"
+            clazz.genericInterfaces.each { println "  ${it}" }
+            println "Constructors:"
+            clazz.declaredConstructors.collect { it.toGenericString() }.sort().each { println "  ${it}" }
+            println "Fields:"
+            clazz.declaredFields.collect { it.toGenericString() }.sort().each { println "  ${it}" }
+            println "Methods:"
+            clazz.declaredMethods
+                    .sort { a, b -> a.name <=> b.name ?: a.toGenericString() <=> b.toGenericString() }
+                    .each { println "  ${it.toGenericString()}" }
+        } catch (ClassNotFoundException e) {
+            throw new GradleException("Class not found: ${className}", e)
+        } catch (LinkageError e) {
+            throw new GradleException("Could not load/inspect ${className}: ${e}", e)
+        } finally {
+            loader.close()
+        }
+    }
+}
+
+// TEMPORARY: usage: gradle findClass -PsimpleName=<SimpleName>
+// Prints the fully qualified name of every class on the compile classpath with that simple name.
+tasks.register('findClass') {
+    group = 'temporary'
+    description = 'TEMPORARY: finds classes by simple name on the compile classpath (-PsimpleName=<Name>).'
+    dependsOn 'createMinecraftArtifacts'
+
+    doLast {
+        if (!project.hasProperty('simpleName')) {
+            throw new GradleException('Missing -PsimpleName=<SimpleClassName>')
+        }
+        String simpleName = project.property('simpleName') as String
+        Set<String> found = new TreeSet<String>()
+        sourceSets.main.compileClasspath.files.each { File f ->
+            if (f.isFile() && f.name.endsWith('.jar')) {
+                new java.util.zip.ZipFile(f).withCloseable { zip ->
+                    Collections.list(zip.entries()).each { entry ->
+                        String n = entry.name
+                        if (n.endsWith('.class') && !n.startsWith('META-INF/') && !n.endsWith('module-info.class')) {
+                            String full = n.substring(0, n.length() - 6).replace('/', '.')
+                            String simple = full.substring(full.lastIndexOf('.') + 1)
+                            String last = simple.substring(simple.lastIndexOf('$') + 1)
+                            if (simple == simpleName || last == simpleName) {
+                                found.add(full)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        println "=== Classes named '${simpleName}' ==="
+        if (found.isEmpty()) {
+            println "  (none found)"
+        } else {
+            found.each { println "  ${it}" }
+        }
+    }
+}
