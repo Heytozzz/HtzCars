@@ -3,7 +3,6 @@ package com.heytozzz.htzcars.client.render;
 import com.heytozzz.htzcars.client.model.GokartModel;
 import com.heytozzz.htzcars.registry.ModDataComponents;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -48,8 +47,7 @@ public class VehicleItemRenderer extends BlockEntityWithoutLevelRenderer {
         poseStack.scale(ITEM_SCALE, ITEM_SCALE, ITEM_SCALE);
         poseStack.scale(-1.0F, -1.0F, 1.0F);
         poseStack.translate(0.0F, -1.501F, 0.0F);
-        VertexConsumer consumer = buffer.getBuffer(model.renderType(VehicleRenderer.TEXTURE));
-        model.renderToBuffer(poseStack, consumer, packedLight, packedOverlay, VehicleTint.argb(color));
+        VehicleRenderer.renderModel(model, poseStack, buffer, packedLight, packedOverlay, color);
         poseStack.popPose();
     }
 }
