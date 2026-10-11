@@ -1,6 +1,8 @@
 package com.heytozzz.htzcars.client;
 
 import com.heytozzz.htzcars.HtzCars;
+import com.heytozzz.htzcars.client.input.VehicleInputHandler;
+import com.heytozzz.htzcars.client.input.VehicleKeyMappings;
 import com.heytozzz.htzcars.client.model.GokartModel;
 import com.heytozzz.htzcars.client.render.VehicleItemRenderer;
 import com.heytozzz.htzcars.client.render.VehicleRenderer;
@@ -16,6 +18,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
+import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * Client-only entry point of the mod. Thanks to dist = Dist.CLIENT it is never loaded on a dedicated server,
@@ -28,6 +31,9 @@ public class HtzCarsClient {
         modEventBus.addListener(HtzCarsClient::onRegisterLayerDefinitions);
         modEventBus.addListener(HtzCarsClient::onRegisterRenderers);
         modEventBus.addListener(HtzCarsClient::onRegisterClientExtensions);
+        modEventBus.addListener(VehicleKeyMappings::onRegisterKeyMappings);
+        // Client tick events are not mod bus events: they go through the game bus.
+        NeoForge.EVENT_BUS.addListener(VehicleInputHandler::onClientTick);
     }
 
     private static void onRegisterLayerDefinitions(EntityRenderersEvent.RegisterLayerDefinitions event) {

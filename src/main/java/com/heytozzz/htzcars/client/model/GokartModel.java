@@ -25,10 +25,43 @@ public class GokartModel extends EntityModel<VehicleEntity> {
     public static final ModelLayerLocation LAYER_LOCATION =
             new ModelLayerLocation(ResourceLocation.fromNamespaceAndPath(HtzCars.MOD_ID, "gokart"), "main");
 
+    /** Radius of the wheels in blocks (4 and 3 model pixels). */
+    private static final float BACK_WHEEL_RADIUS = 0.25F;
+    private static final float FRONT_WHEEL_RADIUS = 0.1875F;
+    /** The steering wheel turns this many times more than the front wheels. */
+    private static final float STEERING_WHEEL_RATIO = 3.0F;
+
     private final ModelPart root;
+    private final ModelPart wheelBackLeft;
+    private final ModelPart wheelBackRight;
+    private final ModelPart wheelFrontLeft;
+    private final ModelPart wheelFrontRight;
+    private final ModelPart steeringWheelDisc;
 
     public GokartModel(ModelPart root) {
         this.root = root;
+        ModelPart body = root.getChild("body");
+        this.wheelBackLeft = body.getChild("wheel_bl");
+        this.wheelBackRight = body.getChild("wheel_br");
+        this.wheelFrontLeft = body.getChild("wheel_fl");
+        this.wheelFrontRight = body.getChild("wheel_fr");
+        this.steeringWheelDisc = body.getChild("steering_wheel").getChild("steering_wheel_tilt").getChild("steering_wheel_disc");
+    }
+
+    /**
+     * Sets the pose of the moving parts. rolledDistance: blocks rolled so far; steerAngle: angle of the front wheels
+     * in radians (positive = right). If a wheel or the steering wheel turns the wrong way, flip its sign here.
+     */
+    public void setAngles(float rolledDistance, float steerAngle) {
+        float backRoll = rolledDistance / BACK_WHEEL_RADIUS;
+        float frontRoll = rolledDistance / FRONT_WHEEL_RADIUS;
+        wheelBackLeft.xRot = backRoll;
+        wheelBackRight.xRot = backRoll;
+        wheelFrontLeft.xRot = frontRoll;
+        wheelFrontRight.xRot = frontRoll;
+        wheelFrontLeft.yRot = steerAngle;
+        wheelFrontRight.yRot = steerAngle;
+        steeringWheelDisc.zRot = -steerAngle * STEERING_WHEEL_RATIO;
     }
 
     public static LayerDefinition createBodyLayer() {
@@ -72,7 +105,10 @@ public class GokartModel extends EntityModel<VehicleEntity> {
 
         PartDefinition steeringWheel = body.addOrReplaceChild("steering_wheel", CubeListBuilder.create(), PartPose.offset(-0.25F, -10.1837F, -7.8361F));
 
-        steeringWheel.addOrReplaceChild("cube_r4", CubeListBuilder.create().texOffs(68, 71).addBox(-2.5F, -2.5F, -1.0F, 5.0F, 5.0F, 1.0F, CubeDeformation.NONE), PartPose.offsetAndRotation(0.0F, -0.1913F, 0.3619F, 0.3927F, 0.0F, 0.0F));
+        // Not in the Blockbench export: the tilt of the wheel lives in its own pivot and the disc is a child of it,
+        // so the disc can spin around its own axis. The geometry is identical to the export (cube_r4).
+        PartDefinition steeringWheelTilt = steeringWheel.addOrReplaceChild("steering_wheel_tilt", CubeListBuilder.create(), PartPose.offsetAndRotation(0.0F, -0.1913F, 0.3619F, 0.3927F, 0.0F, 0.0F));
+        steeringWheelTilt.addOrReplaceChild("steering_wheel_disc", CubeListBuilder.create().texOffs(68, 71).addBox(-2.5F, -2.5F, -1.0F, 5.0F, 5.0F, 1.0F, CubeDeformation.NONE), PartPose.ZERO);
 
         return LayerDefinition.create(meshDefinition, 128, 128);
     }

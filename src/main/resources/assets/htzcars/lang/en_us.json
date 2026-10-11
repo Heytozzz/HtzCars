@@ -7,5 +7,10 @@
   "entity.htzcars.trail": "Trail",
   "entity.htzcars.circuit": "Circuit",
   "entity.htzcars.frost": "Frost",
-  "entity.htzcars.tide": "Tide"
+  "entity.htzcars.tide": "Tide",
+  "key.categories.htzcars": "HtzCars",
+  "key.htzcars.accelerate": "Accelerate",
+  "key.htzcars.brake": "Brake / Reverse",
+  "key.htzcars.steer_left": "Steer Left",
+  "key.htzcars.steer_right": "Steer Right"
 }

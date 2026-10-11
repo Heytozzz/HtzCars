@@ -48,6 +48,7 @@ public class VehicleRenderer extends EntityRenderer<VehicleEntity> {
         // Same setup as vanilla entity models: flipped axes, and moved so the model stands on the ground.
         poseStack.scale(-1.0F, -1.0F, 1.0F);
         poseStack.translate(0.0F, -1.501F, 0.0F);
+        model.setAngles(entity.getRolledDistance(partialTick), entity.getVisualSteer(partialTick));
         renderModel(model, poseStack, buffer, packedLight, OverlayTexture.NO_OVERLAY, entity.getColor());
         poseStack.popPose();
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
