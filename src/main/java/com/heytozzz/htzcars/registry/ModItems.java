@@ -1,6 +1,7 @@
 package com.heytozzz.htzcars.registry;
 
 import com.heytozzz.htzcars.HtzCars;
+import com.heytozzz.htzcars.item.VehicleItem;
 import com.heytozzz.htzcars.vehicle.VehicleClass;
 import java.util.EnumMap;
 import java.util.Map;
@@ -10,7 +11,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-/** Items: one per vehicle class (the color is stored in a data component). Common code. */
+/** Items: one per vehicle class (the color is stored in a data component). Right click places the vehicle. Common code. */
 public final class ModItems {
 
     private static final DeferredRegister<Item> ITEMS = DeferredRegister.create(Registries.ITEM, HtzCars.MOD_ID);
@@ -20,7 +21,7 @@ public final class ModItems {
     static {
         for (VehicleClass vehicleClass : VehicleClass.values()) {
             VEHICLE_ITEMS.put(vehicleClass,
-                    ITEMS.register(vehicleClass.getId(), () -> new Item(new Item.Properties().stacksTo(1))));
+                    ITEMS.<Item>register(vehicleClass.getId(), () -> new VehicleItem(new Item.Properties().stacksTo(1), vehicleClass)));
         }
     }
 
