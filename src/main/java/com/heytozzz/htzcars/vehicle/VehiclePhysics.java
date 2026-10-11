@@ -35,6 +35,33 @@ public final class VehiclePhysics {
     /** ...and the angle that gives full steering lock. */
     public static final float MOUSE_STEER_FULL_LOCK_DEGREES = 40.0F;
 
+    /** Drift: minimum speed to start one, and the speed below which it ends. */
+    public static final double DRIFT_MIN_SPEED = 0.25;
+    public static final double DRIFT_END_SPEED = 0.12;
+    /** Drift: steering needed (0 to 1) when the drift key is pressed to start a drift in that direction. */
+    public static final float DRIFT_START_STEER = 0.3F;
+    /** Drift: vertical speed of the hop that starts it (0.18 is a hop of about 0.2 blocks). */
+    public static final double DRIFT_HOP_SPEED = 0.18;
+    /** Drift: how much of the angle between the vehicle and its movement is closed each tick (grip). */
+    public static final float DRIFT_GRIP = 0.06F;
+    /** Same, after the drift key is released: the vehicle recovers its grip. */
+    public static final float DRIFT_RECOVER_GRIP = 0.25F;
+    /** Drift: steering kept when the player steers against the drift (1 = the full steering of the drift). */
+    public static final float DRIFT_MIN_STEER = 0.55F;
+    /** Drift: the vehicle turns this many times faster than it would at the same steering and speed. */
+    public static final double DRIFT_YAW_BOOST = 1.3;
+    /** Drift: fraction of the speed kept each tick. */
+    public static final double DRIFT_DRAG = 0.992;
+    /** Below this angle (degrees) between the vehicle and its movement, the slide counts as over. */
+    public static final float SLIP_END_DEGREES = 0.5F;
+
+    /** Lean of the vehicle while it slides: maximum angle, the slide that gives it, and its response (degrees per tick). */
+    public static final float MAX_TILT_DEGREES = 10.0F;
+    public static final float TILT_DEAD_ZONE_DEGREES = 3.0F;
+    public static final float TILT_FULL_SLIP_DEGREES = 35.0F;
+    public static final float TILT_RESPONSE_DEGREES = 2.0F;
+    public static final double MIN_TILT_SPEED = 0.05;
+
     /** Fraction of the vertical speed kept each tick. */
     public static final double VERTICAL_DRAG = 0.98;
 

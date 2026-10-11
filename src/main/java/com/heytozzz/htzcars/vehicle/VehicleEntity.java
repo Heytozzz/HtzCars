@@ -22,8 +22,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Base entity of every vehicle. It holds its class, color and model, and handles the player interactions:
- * dye it, pick it up (sneak + use) and ride it (a single seat). It also drives itself: the client of the
- * driver simulates the movement (like boats do) and the server simulates vehicles without a driver.
+ * dye it, pick it up (sneak + use) and ride it (a single seat). It also drives itself, drift included: the
+ * client of the driver simulates the movement (like boats do) and the server simulates vehicles without a driver.
  * Common code: it must not reference client-only classes.
  */
 public class VehicleEntity extends Entity {
@@ -39,14 +39,18 @@ public class VehicleEntity extends Entity {
     private final VehicleClass vehicleClass;
 
     // Driver input, written by the client of the driver every tick (never by the server).
-    private boolean inputAccelerate;
-    private boolean inputBrake;
-    private float inputSteer;
-    private float inputSteerResponse = VehiclePhysics.STEER_RESPONSE;
-    private boolean inputCameraFollows = true;
+    private DriverInput input = DriverInput.NONE;
 
     /** Smoothed steering (-1 = full left, 1 = full right). */
     private float steerState;
+
+    // Drifting, simulated only where the vehicle is driven.
+    private boolean drifting;
+    private int driftDirection;
+    /** True while the vehicle moves in a different direction than it faces (drifting or recovering from it). */
+    private boolean sliding;
+    /** Direction of the movement in degrees; only differs from the facing while sliding. */
+    private float moveYaw;
 
     // State used to animate the wheels and the steering wheel; computed on every side from the real movement.
     private boolean animInitialized;
@@ -57,6 +61,8 @@ public class VehicleEntity extends Entity {
     private float rolledDistanceO;
     private float visualSteer;
     private float visualSteerO;
+    private float visualTilt;
+    private float visualTiltO;
 
     // Smoothing of the position received from the server, for clients that are not driving.
     private int lerpSteps;
@@ -143,17 +149,9 @@ public class VehicleEntity extends Entity {
         return player.startRiding(this) ? InteractionResult.CONSUME : InteractionResult.PASS;
     }
 
-    /**
-     * Called every tick by the client of the driver.
-     * steer: -1 = left, 1 = right. steerResponse: how much of the way to the pressed steering the wheels
-     * cover each tick (1 = instantly). cameraFollows: whether the camera of the driver turns with the vehicle.
-     */
-    public void setInput(boolean accelerate, boolean brake, float steer, float steerResponse, boolean cameraFollows) {
-        this.inputAccelerate = accelerate;
-        this.inputBrake = brake;
-        this.inputSteer = Mth.clamp(steer, -1.0F, 1.0F);
-        this.inputSteerResponse = Mth.clamp(steerResponse, 0.01F, 1.0F);
-        this.inputCameraFollows = cameraFollows;
+    /** Called every tick by the client of the driver. */
+    public void setInput(DriverInput input) {
+        this.input = input;
     }
 
     /** Distance the vehicle has rolled, in blocks, interpolated for rendering. */
@@ -164,6 +162,11 @@ public class VehicleEntity extends Entity {
     /** Steering angle of the front wheels in radians (positive = right), interpolated for rendering. */
     public float getVisualSteer(float partialTick) {
         return Mth.lerp(partialTick, visualSteerO, visualSteer);
+    }
+
+    /** Lean of the vehicle in degrees (positive = to the right), interpolated for rendering. */
+    public float getVisualTilt(float partialTick) {
+        return Mth.lerp(partialTick, visualTiltO, visualTilt);
     }
 
     /** The first passenger drives, as long as it is a living entity. */
@@ -180,11 +183,7 @@ public class VehicleEntity extends Entity {
         super.tick();
 
         if (getControllingPassenger() == null) {
-            inputAccelerate = false;
-            inputBrake = false;
-            inputSteer = 0.0F;
-            inputSteerResponse = VehiclePhysics.STEER_RESPONSE;
-            inputCameraFollows = true;
+            input = DriverInput.NONE;
         }
 
         if (isControlledByLocalInstance()) {
@@ -222,17 +221,22 @@ public class VehicleEntity extends Entity {
     /** One tick of arcade driving. Runs only where the vehicle is simulated (see isControlledByLocalInstance). */
     private void drive() {
         Vec3 motion = getDeltaMovement();
-        double yawRad = Math.toRadians(getYRot());
-        // Speed along the direction the vehicle is facing; negative when going backwards.
-        double speed = motion.x * -Math.sin(yawRad) + motion.z * Math.cos(yawRad);
 
-        if (inputBrake) {
+        // The movement goes where the vehicle faces, except while it slides (drift).
+        if (!sliding) {
+            moveYaw = getYRot();
+        }
+        double moveRad = Math.toRadians(moveYaw);
+        // Speed along the direction of the movement; negative when going backwards.
+        double speed = motion.x * -Math.sin(moveRad) + motion.z * Math.cos(moveRad);
+
+        if (input.brake()) {
             if (speed > VehiclePhysics.STOP_THRESHOLD) {
                 speed = Math.max(0.0, speed - VehiclePhysics.BRAKE_FORCE);
             } else {
                 speed = Math.max(-VehiclePhysics.MAX_REVERSE_SPEED, speed - VehiclePhysics.REVERSE_ACCELERATION);
             }
-        } else if (inputAccelerate) {
+        } else if (input.accelerate()) {
             if (speed < 0.0) {
                 speed = Math.min(0.0, speed + VehiclePhysics.BRAKE_FORCE);
             } else {
@@ -245,11 +249,38 @@ public class VehicleEntity extends Entity {
             }
         }
 
+        // Drift: starts when the key is pressed on the ground, at speed and while steering; ends when it is released.
+        boolean startedDrift = false;
+        if (drifting) {
+            if (!input.drift() || Math.abs(speed) < VehiclePhysics.DRIFT_END_SPEED) {
+                drifting = false;
+            }
+        } else if (input.drift() && onGround() && speed > VehiclePhysics.DRIFT_MIN_SPEED
+                && Math.abs(input.steer()) > VehiclePhysics.DRIFT_START_STEER) {
+            drifting = true;
+            startedDrift = true;
+            driftDirection = input.steer() > 0.0F ? 1 : -1;
+        }
+        if (drifting) {
+            speed *= VehiclePhysics.DRIFT_DRAG;
+        }
+
+        // Steering. While drifting it keeps the direction of the drift: steering into it tightens the turn and
+        // steering against it only widens it.
+        float steerTarget = input.steer();
+        if (drifting) {
+            float intoDrift = (input.steer() * driftDirection + 1.0F) / 2.0F;
+            steerTarget = driftDirection * (VehiclePhysics.DRIFT_MIN_STEER + (1.0F - VehiclePhysics.DRIFT_MIN_STEER) * intoDrift);
+        }
+        steerState = VehiclePhysics.approach(steerState, steerTarget, input.steerResponse());
+
         // Bicycle model: the turning rate comes from the speed and the angle of the front wheels.
-        steerState = VehiclePhysics.approach(steerState, inputSteer, inputSteerResponse);
         double steerAngle = steerState * VehiclePhysics.MAX_STEER_ANGLE
                 / (1.0 + Math.abs(speed) * VehiclePhysics.STEER_SPEED_FALLOFF);
         double yawRate = speed / VehiclePhysics.WHEELBASE * Math.tan(steerAngle);
+        if (drifting) {
+            yawRate *= VehiclePhysics.DRIFT_YAW_BOOST;
+        }
         float oldYaw = getYRot();
         float newYaw = Mth.wrapDegrees(oldYaw + (float) Math.toDegrees(yawRate));
         setYRot(newYaw);
@@ -258,19 +289,40 @@ public class VehicleEntity extends Entity {
         // With key steering the camera of the driver turns with the vehicle; with mouse steering it stays free.
         LivingEntity driver = getControllingPassenger();
         float yawChange = Mth.wrapDegrees(newYaw - oldYaw);
-        if (driver != null && inputCameraFollows && yawChange != 0.0F) {
+        if (driver != null && input.cameraFollows() && yawChange != 0.0F) {
             driver.setYRot(driver.getYRot() + yawChange);
             driver.yRotO += yawChange;
         }
 
-        // Arcade grip: the speed always points where the vehicle faces.
-        yawRad = Math.toRadians(newYaw);
+        // Grip: how fast the movement catches up with where the vehicle faces.
+        if (drifting) {
+            sliding = true;
+            moveYaw = Mth.wrapDegrees(moveYaw + Mth.wrapDegrees(newYaw - moveYaw) * VehiclePhysics.DRIFT_GRIP);
+        } else if (sliding) {
+            moveYaw = Mth.wrapDegrees(moveYaw + Mth.wrapDegrees(newYaw - moveYaw) * VehiclePhysics.DRIFT_RECOVER_GRIP);
+            if (Math.abs(Mth.wrapDegrees(newYaw - moveYaw)) < VehiclePhysics.SLIP_END_DEGREES) {
+                sliding = false;
+                moveYaw = newYaw;
+            }
+        } else {
+            moveYaw = newYaw;
+        }
+
+        // Land vehicles hop when the drift starts.
         double verticalSpeed = (motion.y - getGravity()) * VehiclePhysics.VERTICAL_DRAG;
-        setDeltaMovement(-Math.sin(yawRad) * speed, verticalSpeed, Math.cos(yawRad) * speed);
+        if (startedDrift && vehicleClass.hopsWhenDrifting()) {
+            verticalSpeed = VehiclePhysics.DRIFT_HOP_SPEED;
+        }
+
+        moveRad = Math.toRadians(moveYaw);
+        setDeltaMovement(-Math.sin(moveRad) * speed, verticalSpeed, Math.cos(moveRad) * speed);
         move(MoverType.SELF, getDeltaMovement());
     }
 
-    /** Updates how much the wheels have rolled and how much the front wheels are turned, from the real movement. */
+    /**
+     * Updates how much the wheels have rolled, how much the front wheels are turned and how much the vehicle leans,
+     * all from the real movement, so every client gets the same result without extra packets.
+     */
     private void updateAnimationState() {
         double x = getX();
         double z = getZ();
@@ -278,18 +330,36 @@ public class VehicleEntity extends Entity {
 
         rolledDistanceO = rolledDistance;
         visualSteerO = visualSteer;
+        visualTiltO = visualTilt;
         if (animInitialized) {
+            double dx = x - animLastX;
+            double dz = z - animLastZ;
             double yawRad = Math.toRadians(yaw);
-            double forwardMove = (x - animLastX) * -Math.sin(yawRad) + (z - animLastZ) * Math.cos(yawRad);
+            double forwardMove = dx * -Math.sin(yawRad) + dz * Math.cos(yawRad);
             rolledDistance += (float) forwardMove;
 
-            double target = 0.0;
+            double steerTarget = 0.0;
             if (Math.abs(forwardMove) > VehiclePhysics.MIN_VISUAL_STEER_SPEED) {
                 double yawChange = Math.toRadians(Mth.wrapDegrees(yaw - animLastYaw));
-                target = Mth.clamp(Math.atan(VehiclePhysics.WHEELBASE * yawChange / forwardMove),
+                steerTarget = Mth.clamp(Math.atan(VehiclePhysics.WHEELBASE * yawChange / forwardMove),
                         -VehiclePhysics.MAX_VISUAL_STEER, VehiclePhysics.MAX_VISUAL_STEER);
             }
-            visualSteer = VehiclePhysics.approach(visualSteer, (float) target, VehiclePhysics.VISUAL_STEER_RESPONSE);
+            visualSteer = VehiclePhysics.approach(visualSteer, (float) steerTarget, VehiclePhysics.VISUAL_STEER_RESPONSE);
+
+            // Lean towards the side the vehicle is turning to while it slides: the movement lags behind the facing.
+            float tiltTarget = 0.0F;
+            if (Math.hypot(dx, dz) > VehiclePhysics.MIN_TILT_SPEED) {
+                double movementYaw = Math.toDegrees(Math.atan2(-dx, dz));
+                if (forwardMove < 0.0) {
+                    movementYaw += 180.0;
+                }
+                float slip = Mth.wrapDegrees((float) movementYaw - yaw);
+                float beyondDeadZone = Math.max(0.0F, Math.abs(slip) - VehiclePhysics.TILT_DEAD_ZONE_DEGREES);
+                float slipRange = VehiclePhysics.TILT_FULL_SLIP_DEGREES - VehiclePhysics.TILT_DEAD_ZONE_DEGREES;
+                tiltTarget = -Math.signum(slip) * Mth.clamp(beyondDeadZone / slipRange, 0.0F, 1.0F)
+                        * VehiclePhysics.MAX_TILT_DEGREES;
+            }
+            visualTilt = VehiclePhysics.approach(visualTilt, tiltTarget, VehiclePhysics.TILT_RESPONSE_DEGREES);
         }
         animLastX = x;
         animLastZ = z;

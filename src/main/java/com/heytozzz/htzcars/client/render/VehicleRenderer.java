@@ -45,6 +45,8 @@ public class VehicleRenderer extends EntityRenderer<VehicleEntity> {
         poseStack.pushPose();
         float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yaw));
+        // Lean while sliding, around the front-to-back axis at ground level (negative angle = lean to the right).
+        poseStack.mulPose(Axis.ZP.rotationDegrees(-entity.getVisualTilt(partialTick)));
         // Same setup as vanilla entity models: flipped axes, and moved so the model stands on the ground.
         poseStack.scale(-1.0F, -1.0F, 1.0F);
         poseStack.translate(0.0F, -1.501F, 0.0F);

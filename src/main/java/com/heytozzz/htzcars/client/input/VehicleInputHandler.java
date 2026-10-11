@@ -2,6 +2,7 @@ package com.heytozzz.htzcars.client.input;
 
 import com.heytozzz.htzcars.client.ClientConfig;
 import com.heytozzz.htzcars.config.ServerConfig;
+import com.heytozzz.htzcars.vehicle.DriverInput;
 import com.heytozzz.htzcars.vehicle.VehicleEntity;
 import com.heytozzz.htzcars.vehicle.VehiclePhysics;
 import net.minecraft.client.Minecraft;
@@ -47,6 +48,7 @@ public final class VehicleInputHandler {
             steerResponse = VehiclePhysics.STEER_RESPONSE;
             cameraFollows = true;
         }
-        vehicle.setInput(VehicleKeyMappings.ACCELERATE.isDown(), VehicleKeyMappings.BRAKE.isDown(), steer, steerResponse, cameraFollows);
+        vehicle.setInput(new DriverInput(VehicleKeyMappings.ACCELERATE.isDown(), VehicleKeyMappings.BRAKE.isDown(),
+                steer, steerResponse, cameraFollows, VehicleKeyMappings.DRIFT.isDown()));
     }
 }

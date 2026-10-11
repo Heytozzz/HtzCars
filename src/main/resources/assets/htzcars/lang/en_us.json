@@ -13,5 +13,6 @@
   "key.htzcars.brake": "Brake / Reverse",
   "key.htzcars.steer_left": "Steer Left",
   "key.htzcars.steer_right": "Steer Right",
-  "key.htzcars.toggle_steering_mode": "Toggle Steering Mode (Keys / Mouse)"
+  "key.htzcars.toggle_steering_mode": "Toggle Steering Mode (Keys / Mouse)",
+  "key.htzcars.drift": "Drift"
 }
