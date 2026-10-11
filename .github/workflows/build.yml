@@ -26,7 +26,7 @@ jobs:
         with:
           gradle-version: '8.14.3' # Pinned. Quotes are required so YAML does not parse it as a number.
 
-      # TEMPORARY: API inspection step (it never fails the job). Remove it once its results are no longer needed.
+      # TEMPORARY: API inspection step (it never fails the job). Remove it (and re-enable the build below) once its results are no longer needed.
       # One entry per line. Formats:
       #   SimpleName@package.prefix#regex   the class is looked up by simple name (findClass) and only matches
       #                                     whose full name starts with the prefix are inspected
@@ -37,21 +37,21 @@ jobs:
         continue-on-error: true
         env:
           INSPECT_ENTRIES: |-
-            net.minecraft.world.entity.Entity#\.(level|startRiding|discard|setPos|setYRot|getBoundingBox|isShiftKeyDown|isSecondaryUseActive|interact|spawnAtLocation|getControllingPassenger|getPassengers|isPassenger)\(
-            LivingEntity@net.minecraft.world.entity.#\.(getItemInHand|swing)\(
-            net.minecraft.world.entity.player.Player#\.(isCreative|addItem|drop|getInventory)\(
-            net.minecraft.world.level.Level#\.(addFreshEntity|noCollision|getEntities)\(|\.isClientSide$
-            net.minecraft.world.InteractionResult#\.(SUCCESS|CONSUME|PASS|FAIL)$|\.sidedSuccess\(
-            InteractionResultHolder@net.minecraft.world.#\.(success|fail|pass|consume|sidedSuccess)\(
-            net.minecraft.world.item.Item#\.(use|getPlayerPOVHitResult)\(
-            InteractionHand@net.minecraft.world.
-            ClipContext$Fluid@net.minecraft.world.level.
-            BlockHitResult@net.minecraft.world.phys.#\.(getBlockPos|getDirection)\(
-            HitResult@net.minecraft.world.phys.#\.(getType|getLocation)\(
-            HitResult$Type@net.minecraft.world.phys.
-            Vec3@net.minecraft.world.phys.#\.(x|y|z)(\(|$)
-            DyeItem@net.minecraft.world.item.#\.(getDyeColor|byColor)\(
-            net.minecraft.world.item.ItemStack#\.(shrink|isEmpty|getItem)\(
+            net.minecraft.world.entity.LivingEntity#\.(getItemInHand|swing)\(
+            LevelWriter@net.minecraft.world.level.#\.addFreshEntity\(
+            CollisionGetter@net.minecraft.world.level.#\.noCollision\(
+            KeyMapping@net.minecraft.client.#\.(isDown|consumeClick|getKey|setKey)\(
+            RegisterKeyMappingsEvent@net.neoforged.neoforge.client.
+            IKeyConflictContext@net.neoforged.neoforge.client.
+            KeyConflictContext@net.neoforged.neoforge.client.#\.(IN_GAME|GUI|UNIVERSAL)$
+            InputConstants@com.mojang.blaze3d.platform.#\.(KEY_W|KEY_A|KEY_S|KEY_D|KEY_SPACE)$
+            InputConstants$Type@com.mojang.blaze3d.platform.#\.(KEYSYM|MOUSE)$
+            ClientTickEvent$Post@net.neoforged.neoforge.client.
+            net.minecraft.client.Minecraft#\.(player|options)$|\.isPaused\(
+            net.minecraft.world.entity.Entity#\.(setDeltaMovement|getDeltaMovement|move|onGround|isControlledByLocalInstance|lerpTo|setXRot|isNoGravity|setNoGravity|getGravity|tick|isInWater|getBlockStateOn|setOnGround)\(|\.(walkDist|walkDistO|horizontalCollision)$
+            MoverType@net.minecraft.world.entity.#\.(SELF|PLAYER)$
+            net.minecraft.world.phys.Vec3#\.(add|scale|multiply|horizontalDistance|length|normalize|subtract|yRot)\(|\.ZERO$
+            net.minecraft.util.Mth#\.(clamp|wrapDegrees|approach|sin|cos|degreesDifference)\(
         run: |
           status=0
 
@@ -116,10 +116,13 @@ jobs:
           done <<< "$INSPECT_ENTRIES"
           exit $status
 
+      # TEMPORARILY DISABLED to save time while inspecting the API. Remove the "if: false" lines to re-enable.
       - name: Build
+        if: ${{ false }}
         run: gradle build --stacktrace
 
       - name: Upload jars
+        if: ${{ false }}
         uses: actions/upload-artifact@v4
         with:
           name: htzcars-jars
