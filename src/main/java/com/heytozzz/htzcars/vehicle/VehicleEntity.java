@@ -2,10 +2,13 @@ package com.heytozzz.htzcars.vehicle;
 
 import com.heytozzz.htzcars.registry.ModDataComponents;
 import com.heytozzz.htzcars.registry.ModItems;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -18,6 +21,7 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -218,9 +222,56 @@ public class VehicleEntity extends Entity {
         setXRot(0.0F);
     }
 
+    /**
+     * How high a block this vehicle can climb without jumping. The game asks for it every time the vehicle moves.
+     */
+    @Override
+    public float maxUpStep() {
+        return switch (vehicleClass) {
+            case TRAIL -> VehiclePhysics.STEP_HEIGHT_TRAIL;
+            case CIRCUIT -> VehiclePhysics.STEP_HEIGHT_CIRCUIT;
+            case FROST -> isSnowOrIceAhead() ? VehiclePhysics.STEP_HEIGHT_FROST_ON_SNOW : VehiclePhysics.STEP_HEIGHT_FROST;
+            case TIDE -> VehiclePhysics.STEP_HEIGHT_TIDE;
+        };
+    }
+
+    /** True if the block in the direction the vehicle is moving, at its feet, is snow or ice. */
+    private boolean isSnowOrIceAhead() {
+        Vec3 motion = getDeltaMovement();
+        double horizontalSpeed = motion.horizontalDistance();
+        if (horizontalSpeed < 1.0E-4) {
+            return false;
+        }
+        double directionX = motion.x / horizontalSpeed;
+        double directionZ = motion.z / horizontalSpeed;
+        for (double distance : VehiclePhysics.STEP_PROBE_DISTANCES) {
+            BlockPos pos = BlockPos.containing(getX() + directionX * distance, getY() + 0.1, getZ() + directionZ * distance);
+            BlockState state = level().getBlockState(pos);
+            if (state.is(BlockTags.SNOW) || state.is(BlockTags.ICE)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** One tick of arcade driving. Runs only where the vehicle is simulated (see isControlledByLocalInstance). */
     private void drive() {
         Vec3 motion = getDeltaMovement();
+
+        // Terrain. Land vehicles need to be out of the water; the water vehicle needs water or ice.
+        // Without traction the vehicle cannot accelerate, brake, steer or drift: it only coasts.
+        boolean inWater = isInWater();
+        BlockState below = getBlockStateOn();
+        boolean onIce = below.is(BlockTags.ICE);
+        boolean onSnowOrIce = onIce || below.is(BlockTags.SNOW);
+        boolean traction = vehicleClass == VehicleClass.TIDE ? (inWater || onIce) : !inWater;
+
+        double maxSpeed = VehiclePhysics.MAX_SPEED;
+        double maxReverseSpeed = VehiclePhysics.MAX_REVERSE_SPEED;
+        if (vehicleClass == VehicleClass.FROST && !onSnowOrIce) {
+            maxSpeed *= VehiclePhysics.FROST_LAND_SPEED_FACTOR;
+            maxReverseSpeed *= VehiclePhysics.FROST_LAND_SPEED_FACTOR;
+        }
 
         // The movement goes where the vehicle faces, except while it slides (drift).
         if (!sliding) {
@@ -230,17 +281,24 @@ public class VehicleEntity extends Entity {
         // Speed along the direction of the movement; negative when going backwards.
         double speed = motion.x * -Math.sin(moveRad) + motion.z * Math.cos(moveRad);
 
-        if (input.brake()) {
+        if (!traction) {
+            speed *= inWater ? VehiclePhysics.NO_TRACTION_WATER_DRAG : VehiclePhysics.NO_TRACTION_GROUND_DRAG;
+            if (Math.abs(speed) < VehiclePhysics.STOP_THRESHOLD) {
+                speed = 0.0;
+            }
+        } else if (input.brake()) {
             if (speed > VehiclePhysics.STOP_THRESHOLD) {
                 speed = Math.max(0.0, speed - VehiclePhysics.BRAKE_FORCE);
             } else {
-                speed = Math.max(-VehiclePhysics.MAX_REVERSE_SPEED, speed - VehiclePhysics.REVERSE_ACCELERATION);
+                speed = Math.max(-maxReverseSpeed, speed - VehiclePhysics.REVERSE_ACCELERATION);
             }
         } else if (input.accelerate()) {
             if (speed < 0.0) {
                 speed = Math.min(0.0, speed + VehiclePhysics.BRAKE_FORCE);
+            } else if (speed < maxSpeed) {
+                speed = Math.min(maxSpeed, speed + VehiclePhysics.ACCELERATION);
             } else {
-                speed = Math.min(VehiclePhysics.MAX_SPEED, speed + VehiclePhysics.ACCELERATION);
+                speed = Math.max(maxSpeed, speed - VehiclePhysics.OVERSPEED_DECELERATION);
             }
         } else {
             speed *= VehiclePhysics.COAST_DRAG;
@@ -252,10 +310,10 @@ public class VehicleEntity extends Entity {
         // Drift: starts when the key is pressed on the ground, at speed and while steering; ends when it is released.
         boolean startedDrift = false;
         if (drifting) {
-            if (!input.drift() || Math.abs(speed) < VehiclePhysics.DRIFT_END_SPEED) {
+            if (!traction || !input.drift() || Math.abs(speed) < VehiclePhysics.DRIFT_END_SPEED) {
                 drifting = false;
             }
-        } else if (input.drift() && onGround() && speed > VehiclePhysics.DRIFT_MIN_SPEED
+        } else if (traction && input.drift() && onGround() && speed > VehiclePhysics.DRIFT_MIN_SPEED
                 && Math.abs(input.steer()) > VehiclePhysics.DRIFT_START_STEER) {
             drifting = true;
             startedDrift = true;
@@ -267,7 +325,7 @@ public class VehicleEntity extends Entity {
 
         // Steering. While drifting it keeps the direction of the drift: steering into it tightens the turn and
         // steering against it only widens it.
-        float steerTarget = input.steer();
+        float steerTarget = traction ? input.steer() : 0.0F;
         if (drifting) {
             float intoDrift = (input.steer() * driftDirection + 1.0F) / 2.0F;
             steerTarget = driftDirection * (VehiclePhysics.DRIFT_MIN_STEER + (1.0F - VehiclePhysics.DRIFT_MIN_STEER) * intoDrift);
@@ -275,11 +333,14 @@ public class VehicleEntity extends Entity {
         steerState = VehiclePhysics.approach(steerState, steerTarget, input.steerResponse());
 
         // Bicycle model: the turning rate comes from the speed and the angle of the front wheels.
-        double steerAngle = steerState * VehiclePhysics.MAX_STEER_ANGLE
-                / (1.0 + Math.abs(speed) * VehiclePhysics.STEER_SPEED_FALLOFF);
-        double yawRate = speed / VehiclePhysics.WHEELBASE * Math.tan(steerAngle);
-        if (drifting) {
-            yawRate *= VehiclePhysics.DRIFT_YAW_BOOST;
+        double yawRate = 0.0;
+        if (traction) {
+            double steerAngle = steerState * VehiclePhysics.MAX_STEER_ANGLE
+                    / (1.0 + Math.abs(speed) * VehiclePhysics.STEER_SPEED_FALLOFF);
+            yawRate = speed / VehiclePhysics.WHEELBASE * Math.tan(steerAngle);
+            if (drifting) {
+                yawRate *= VehiclePhysics.DRIFT_YAW_BOOST;
+            }
         }
         float oldYaw = getYRot();
         float newYaw = Mth.wrapDegrees(oldYaw + (float) Math.toDegrees(yawRate));
@@ -308,8 +369,16 @@ public class VehicleEntity extends Entity {
             moveYaw = newYaw;
         }
 
+        // Vertical movement: gravity, or floating when the hitbox is in water (any class floats).
+        double waterHeight = getFluidHeight(FluidTags.WATER);
+        double verticalSpeed;
+        if (waterHeight > 0.0) {
+            verticalSpeed = (motion.y + (waterHeight - VehiclePhysics.FLOAT_DEPTH) * VehiclePhysics.BUOYANCY)
+                    * VehiclePhysics.WATER_VERTICAL_DRAG;
+        } else {
+            verticalSpeed = (motion.y - VehiclePhysics.GRAVITY) * VehiclePhysics.VERTICAL_DRAG;
+        }
         // Land vehicles hop when the drift starts.
-        double verticalSpeed = (motion.y - getGravity()) * VehiclePhysics.VERTICAL_DRAG;
         if (startedDrift && vehicleClass.hopsWhenDrifting()) {
             verticalSpeed = VehiclePhysics.DRIFT_HOP_SPEED;
         }
