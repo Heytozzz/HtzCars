@@ -116,13 +116,10 @@ jobs:
           done <<< "$INSPECT_ENTRIES"
           exit $status
 
-      # TEMPORARILY DISABLED to save time while inspecting the API. Remove the "if: false" lines to re-enable.
       - name: Build
-        if: ${{ false }}
         run: gradle build --stacktrace
 
       - name: Upload jars
-        if: ${{ false }}
         uses: actions/upload-artifact@v4
         with:
           name: htzcars-jars
