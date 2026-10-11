@@ -14,6 +14,8 @@ public final class VehicleKeyMappings {
     public static final KeyMapping BRAKE = create("brake", InputConstants.KEY_S);
     public static final KeyMapping STEER_LEFT = create("steer_left", InputConstants.KEY_A);
     public static final KeyMapping STEER_RIGHT = create("steer_right", InputConstants.KEY_D);
+    /** Switches between steering with the keys and with the mouse. The default key is R (GLFW key code 82). */
+    public static final KeyMapping TOGGLE_STEERING_MODE = create("toggle_steering_mode", 82);
 
     private VehicleKeyMappings() {
     }
@@ -28,5 +30,6 @@ public final class VehicleKeyMappings {
         event.register(BRAKE);
         event.register(STEER_LEFT);
         event.register(STEER_RIGHT);
+        event.register(TOGGLE_STEERING_MODE);
     }
 }

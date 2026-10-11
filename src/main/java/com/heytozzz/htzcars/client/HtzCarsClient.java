@@ -15,6 +15,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
@@ -28,6 +29,7 @@ import net.neoforged.neoforge.common.NeoForge;
 public class HtzCarsClient {
 
     public HtzCarsClient(IEventBus modEventBus, ModContainer modContainer) {
+        modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
         modEventBus.addListener(HtzCarsClient::onRegisterLayerDefinitions);
         modEventBus.addListener(HtzCarsClient::onRegisterRenderers);
         modEventBus.addListener(HtzCarsClient::onRegisterClientExtensions);

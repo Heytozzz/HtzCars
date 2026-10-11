@@ -30,6 +30,11 @@ public final class VehiclePhysics {
     /** How fast the steering reaches the pressed direction, per tick (1 = instantly). */
     public static final float STEER_RESPONSE = 0.2F;
 
+    /** Mouse steering: angle between the camera and the vehicle that gives no steering at all... */
+    public static final float MOUSE_STEER_DEAD_ZONE_DEGREES = 2.0F;
+    /** ...and the angle that gives full steering lock. */
+    public static final float MOUSE_STEER_FULL_LOCK_DEGREES = 40.0F;
+
     /** Fraction of the vertical speed kept each tick. */
     public static final double VERTICAL_DRAG = 0.98;
 

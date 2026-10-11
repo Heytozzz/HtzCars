@@ -42,6 +42,8 @@ public class VehicleEntity extends Entity {
     private boolean inputAccelerate;
     private boolean inputBrake;
     private float inputSteer;
+    private float inputSteerResponse = VehiclePhysics.STEER_RESPONSE;
+    private boolean inputCameraFollows = true;
 
     /** Smoothed steering (-1 = full left, 1 = full right). */
     private float steerState;
@@ -141,11 +143,17 @@ public class VehicleEntity extends Entity {
         return player.startRiding(this) ? InteractionResult.CONSUME : InteractionResult.PASS;
     }
 
-    /** Called every tick by the client of the driver. steer: -1 = left, 1 = right. */
-    public void setInput(boolean accelerate, boolean brake, float steer) {
+    /**
+     * Called every tick by the client of the driver.
+     * steer: -1 = left, 1 = right. steerResponse: how much of the way to the pressed steering the wheels
+     * cover each tick (1 = instantly). cameraFollows: whether the camera of the driver turns with the vehicle.
+     */
+    public void setInput(boolean accelerate, boolean brake, float steer, float steerResponse, boolean cameraFollows) {
         this.inputAccelerate = accelerate;
         this.inputBrake = brake;
         this.inputSteer = Mth.clamp(steer, -1.0F, 1.0F);
+        this.inputSteerResponse = Mth.clamp(steerResponse, 0.01F, 1.0F);
+        this.inputCameraFollows = cameraFollows;
     }
 
     /** Distance the vehicle has rolled, in blocks, interpolated for rendering. */
@@ -175,6 +183,8 @@ public class VehicleEntity extends Entity {
             inputAccelerate = false;
             inputBrake = false;
             inputSteer = 0.0F;
+            inputSteerResponse = VehiclePhysics.STEER_RESPONSE;
+            inputCameraFollows = true;
         }
 
         if (isControlledByLocalInstance()) {
@@ -236,7 +246,7 @@ public class VehicleEntity extends Entity {
         }
 
         // Bicycle model: the turning rate comes from the speed and the angle of the front wheels.
-        steerState = VehiclePhysics.approach(steerState, inputSteer, VehiclePhysics.STEER_RESPONSE);
+        steerState = VehiclePhysics.approach(steerState, inputSteer, inputSteerResponse);
         double steerAngle = steerState * VehiclePhysics.MAX_STEER_ANGLE
                 / (1.0 + Math.abs(speed) * VehiclePhysics.STEER_SPEED_FALLOFF);
         double yawRate = speed / VehiclePhysics.WHEELBASE * Math.tan(steerAngle);
@@ -245,10 +255,10 @@ public class VehicleEntity extends Entity {
         setYRot(newYaw);
         setXRot(0.0F);
 
-        // The camera of the driver turns with the vehicle.
+        // With key steering the camera of the driver turns with the vehicle; with mouse steering it stays free.
         LivingEntity driver = getControllingPassenger();
         float yawChange = Mth.wrapDegrees(newYaw - oldYaw);
-        if (driver != null && yawChange != 0.0F) {
+        if (driver != null && inputCameraFollows && yawChange != 0.0F) {
             driver.setYRot(driver.getYRot() + yawChange);
             driver.yRotO += yawChange;
         }
