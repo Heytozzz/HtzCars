@@ -6,6 +6,7 @@ import com.heytozzz.htzcars.client.input.VehicleKeyMappings;
 import com.heytozzz.htzcars.client.model.GokartModel;
 import com.heytozzz.htzcars.client.render.VehicleItemRenderer;
 import com.heytozzz.htzcars.client.render.VehicleRenderer;
+import com.heytozzz.htzcars.client.sound.VehicleSoundHandler;
 import com.heytozzz.htzcars.registry.ModEntities;
 import com.heytozzz.htzcars.registry.ModItems;
 import com.heytozzz.htzcars.vehicle.VehicleClass;
@@ -36,6 +37,7 @@ public class HtzCarsClient {
         modEventBus.addListener(VehicleKeyMappings::onRegisterKeyMappings);
         // Client tick events are not mod bus events: they go through the game bus.
         NeoForge.EVENT_BUS.addListener(VehicleInputHandler::onClientTick);
+        NeoForge.EVENT_BUS.addListener(VehicleSoundHandler::onEntityJoinLevel);
     }
 
     private static void onRegisterLayerDefinitions(EntityRenderersEvent.RegisterLayerDefinitions event) {

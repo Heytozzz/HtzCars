@@ -67,6 +67,8 @@ public class VehicleEntity extends Entity {
     private float visualSteerO;
     private float visualTilt;
     private float visualTiltO;
+    /** Horizontal speed in blocks per tick, measured from the real movement (so it works on every client). */
+    private float observedSpeed;
 
     // Smoothing of the position received from the server, for clients that are not driving.
     private int lerpSteps;
@@ -166,6 +168,11 @@ public class VehicleEntity extends Entity {
     /** Steering angle of the front wheels in radians (positive = right), interpolated for rendering. */
     public float getVisualSteer(float partialTick) {
         return Mth.lerp(partialTick, visualSteerO, visualSteer);
+    }
+
+    /** Horizontal speed in blocks per tick, measured from the real movement. Used for the engine sound. */
+    public float getObservedSpeed() {
+        return observedSpeed;
     }
 
     /** Lean of the vehicle in degrees (positive = to the right), interpolated for rendering. */
@@ -420,6 +427,7 @@ public class VehicleEntity extends Entity {
         if (animInitialized) {
             double dx = x - animLastX;
             double dz = z - animLastZ;
+            observedSpeed = (float) Math.hypot(dx, dz);
             double yawRad = Math.toRadians(yaw);
             double forwardMove = dx * -Math.sin(yawRad) + dz * Math.cos(yawRad);
             rolledDistance += (float) forwardMove;

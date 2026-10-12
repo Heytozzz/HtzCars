@@ -1,0 +1,6 @@
+{
+  "vehicle.trail.engine": { "sounds": [ "htzcars:vehicle/engine_generic" ] },
+  "vehicle.circuit.engine": { "sounds": [ "htzcars:vehicle/engine_generic" ] },
+  "vehicle.frost.engine": { "sounds": [ "htzcars:vehicle/engine_generic" ] },
+  "vehicle.tide.engine": { "sounds": [ "htzcars:vehicle/engine_generic" ] }
+}

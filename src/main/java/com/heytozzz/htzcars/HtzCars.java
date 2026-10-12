@@ -5,6 +5,7 @@ import com.heytozzz.htzcars.registry.ModCreativeTabs;
 import com.heytozzz.htzcars.registry.ModDataComponents;
 import com.heytozzz.htzcars.registry.ModEntities;
 import com.heytozzz.htzcars.registry.ModItems;
+import com.heytozzz.htzcars.registry.ModSounds;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -35,5 +36,6 @@ public class HtzCars {
         ModEntities.register(modEventBus);
         ModItems.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
+        ModSounds.register(modEventBus);
     }
 }

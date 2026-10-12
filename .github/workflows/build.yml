@@ -37,16 +37,8 @@ jobs:
         continue-on-error: true
         env:
           INSPECT_ENTRIES: |-
-            net.minecraft.core.registries.Registries#\.SOUND_EVENT$
-            SoundEvent@net.minecraft.sounds.#\.createVariableRangeEvent\(
-            SoundSource@net.minecraft.sounds.#\.(NEUTRAL|PLAYERS)$
-            AbstractTickableSoundInstance@net.minecraft.client.resources.sounds.
-            AbstractSoundInstance@net.minecraft.client.resources.sounds.#\.(volume|pitch|x|y|z|looping|delay|attenuation|relative)$
-            SoundManager@net.minecraft.client.sounds.#\.play\(
-            net.minecraft.client.Minecraft#\.getSoundManager\(
-            RandomSource@net.minecraft.util.#\.create\(
-            EntityJoinLevelEvent@net.neoforged.neoforge.event.entity.
-            net.minecraft.world.entity.Entity#\.(isRemoved|isAlive|getRemovalReason)\(
+            TickableSoundInstance@net.minecraft.client.resources.sounds.
+            EntityEvent@net.neoforged.neoforge.event.entity.#\.getEntity\(
         run: |
           status=0
 
@@ -111,13 +103,10 @@ jobs:
           done <<< "$INSPECT_ENTRIES"
           exit $status
 
-      # TEMPORARILY DISABLED to save time while inspecting the API. Remove the "if: false" lines to re-enable.
       - name: Build
-        if: ${{ false }}
         run: gradle build --stacktrace
 
       - name: Upload jars
-        if: ${{ false }}
         uses: actions/upload-artifact@v4
         with:
           name: htzcars-jars
