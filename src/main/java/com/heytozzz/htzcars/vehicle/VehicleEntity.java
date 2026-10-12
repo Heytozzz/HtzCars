@@ -327,8 +327,17 @@ public class VehicleEntity extends Entity {
         // steering against it only widens it.
         float steerTarget = traction ? input.steer() : 0.0F;
         if (drifting) {
-            float intoDrift = (input.steer() * driftDirection + 1.0F) / 2.0F;
-            steerTarget = driftDirection * (VehiclePhysics.DRIFT_MIN_STEER + (1.0F - VehiclePhysics.DRIFT_MIN_STEER) * intoDrift);
+            // -1 = steering against the drift, 0 = steering released, 1 = steering into the drift.
+            float intoDrift = input.steer() * driftDirection;
+            float steerFraction;
+            if (intoDrift >= 0.0F) {
+                steerFraction = VehiclePhysics.DRIFT_STEER_NEUTRAL
+                        + (VehiclePhysics.DRIFT_STEER_INTO - VehiclePhysics.DRIFT_STEER_NEUTRAL) * intoDrift;
+            } else {
+                steerFraction = VehiclePhysics.DRIFT_STEER_NEUTRAL
+                        + (VehiclePhysics.DRIFT_STEER_NEUTRAL - VehiclePhysics.DRIFT_STEER_AGAINST) * intoDrift;
+            }
+            steerTarget = driftDirection * steerFraction;
         }
         steerState = VehiclePhysics.approach(steerState, steerTarget, input.steerResponse());
 
@@ -356,7 +365,15 @@ public class VehicleEntity extends Entity {
         }
 
         // Grip: how fast the movement catches up with where the vehicle faces.
-        if (drifting) {
+        float slip = Mth.wrapDegrees(newYaw - moveYaw);
+        if ((drifting || sliding) && Math.abs(slip) > VehiclePhysics.DRIFT_SPIN_OUT_DEGREES) {
+            // Spun out: the drift is lost and the vehicle is left going backwards (only the part of the speed
+            // that points opposite to where it faces is kept, up to the reverse top speed).
+            drifting = false;
+            sliding = false;
+            moveYaw = newYaw;
+            speed = Math.max(-maxReverseSpeed, speed * Math.cos(Math.toRadians(slip)));
+        } else if (drifting) {
             sliding = true;
             moveYaw = Mth.wrapDegrees(moveYaw + Mth.wrapDegrees(newYaw - moveYaw) * VehiclePhysics.DRIFT_GRIP);
         } else if (sliding) {

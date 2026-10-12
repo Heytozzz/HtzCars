@@ -46,8 +46,16 @@ public final class VehiclePhysics {
     public static final float DRIFT_GRIP = 0.06F;
     /** Same, after the drift key is released: the vehicle recovers its grip. */
     public static final float DRIFT_RECOVER_GRIP = 0.25F;
-    /** Drift: steering kept when the player steers against the drift (1 = the full steering of the drift). */
-    public static final float DRIFT_MIN_STEER = 0.55F;
+    /**
+     * Drift: how much of the full steering the wheels keep while drifting, depending on what the player does.
+     * The angle between the vehicle and its movement settles higher the more steering is kept: with the keys
+     * released it settles at about 40 degrees, steering into the drift it can go past 90 at top speed.
+     */
+    public static final float DRIFT_STEER_AGAINST = 0.10F;
+    public static final float DRIFT_STEER_NEUTRAL = 0.35F;
+    public static final float DRIFT_STEER_INTO = 0.75F;
+    /** Drift: if the angle between the vehicle and its movement goes past this, the vehicle spins out and ends up in reverse. */
+    public static final float DRIFT_SPIN_OUT_DEGREES = 90.0F;
     /** Drift: the vehicle turns this many times faster than it would at the same steering and speed. */
     public static final double DRIFT_YAW_BOOST = 1.3;
     /** Drift: fraction of the speed kept each tick. */
