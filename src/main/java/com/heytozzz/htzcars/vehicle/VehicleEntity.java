@@ -1,6 +1,7 @@
 package com.heytozzz.htzcars.vehicle;
 
 import com.heytozzz.htzcars.registry.ModDataComponents;
+import com.heytozzz.htzcars.registry.ModEntities;
 import com.heytozzz.htzcars.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -69,6 +70,12 @@ public class VehicleEntity extends Entity {
     private float visualTiltO;
     /** Horizontal speed in blocks per tick, measured from the real movement (so it works on every client). */
     private float observedSpeed;
+    /** Movement of the last tick, in blocks. */
+    private double observedDx;
+    private double observedDz;
+
+    /** Server side: whether somebody was driving on the previous tick. */
+    private boolean hadDriver;
 
     // Smoothing of the position received from the server, for clients that are not driving.
     private int lerpSteps;
@@ -193,17 +200,50 @@ public class VehicleEntity extends Entity {
     public void tick() {
         super.tick();
 
-        if (getControllingPassenger() == null) {
+        LivingEntity driver = getControllingPassenger();
+        if (driver == null) {
             input = DriverInput.NONE;
+        }
+
+        // While somebody drives, the client of the driver simulates the vehicle and the server and the other clients
+        // only follow it, so the data they hold about it gets out of date. When the driver leaves, the server replaces
+        // the vehicle by a fresh copy at the position it knows, which every client receives from scratch.
+        if (!level().isClientSide) {
+            if (hadDriver && driver == null && replaceWithFreshCopy()) {
+                return;
+            }
+            hadDriver = driver != null;
         }
 
         if (isControlledByLocalInstance()) {
             lerpSteps = 0;
             drive();
         } else if (level().isClientSide) {
+            // It is not simulated here: forget the speed it had, so it does not shoot off when somebody drives it again.
+            setDeltaMovement(Vec3.ZERO);
             interpolateToServerPosition();
         }
         updateAnimationState();
+    }
+
+    /**
+     * Server side: removes this vehicle and spawns an identical one in its place that keeps rolling with the speed it
+     * had, so it coasts to a stop after the driver leaves. Returns false (and changes nothing) if it could not.
+     */
+    private boolean replaceWithFreshCopy() {
+        VehicleEntity copy = ModEntities.get(vehicleClass).get().create(level());
+        if (copy == null) {
+            return false;
+        }
+        copy.setPos(getX(), getY(), getZ());
+        copy.setYRot(getYRot());
+        copy.setXRot(0.0F);
+        copy.setColor(getColor());
+        copy.setModelIndex(getModelIndex());
+        copy.setDeltaMovement(observedDx, 0.0, observedDz);
+        level().addFreshEntity(copy);
+        discard();
+        return true;
     }
 
     @Override
@@ -428,6 +468,8 @@ public class VehicleEntity extends Entity {
             double dx = x - animLastX;
             double dz = z - animLastZ;
             observedSpeed = (float) Math.hypot(dx, dz);
+            observedDx = dx;
+            observedDz = dz;
             double yawRad = Math.toRadians(yaw);
             double forwardMove = dx * -Math.sin(yawRad) + dz * Math.cos(yawRad);
             rolledDistance += (float) forwardMove;

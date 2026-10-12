@@ -18,6 +18,11 @@ public class VehicleEngineSound extends AbstractTickableSoundInstance {
     private static final float MAX_PITCH = 1.5F;
     private static final float IDLE_VOLUME = 0.5F;
     private static final float MAX_VOLUME = 0.9F;
+    /**
+     * Volume while nobody drives. It is not 0 on purpose: the game does not start a sound whose volume is 0 when it
+     * is played (and this one starts when the vehicle appears, before anybody rides it), so it would never play.
+     */
+    private static final float SILENT_VOLUME = 0.001F;
 
     private final VehicleEntity vehicle;
 
@@ -26,7 +31,7 @@ public class VehicleEngineSound extends AbstractTickableSoundInstance {
         this.vehicle = vehicle;
         this.looping = true;
         this.delay = 0;
-        this.volume = 0.0F;
+        this.volume = SILENT_VOLUME;
         this.pitch = IDLE_PITCH;
         this.x = vehicle.getX();
         this.y = vehicle.getY();
@@ -44,7 +49,7 @@ public class VehicleEngineSound extends AbstractTickableSoundInstance {
         this.z = vehicle.getZ();
 
         if (vehicle.getControllingPassenger() == null) {
-            this.volume = 0.0F;
+            this.volume = SILENT_VOLUME;
             return;
         }
         float speedFraction = Mth.clamp((float) (vehicle.getObservedSpeed() / VehiclePhysics.MAX_SPEED), 0.0F, 1.0F);

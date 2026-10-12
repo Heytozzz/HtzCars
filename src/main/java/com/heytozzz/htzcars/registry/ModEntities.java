@@ -43,6 +43,7 @@ public final class ModEntities {
                         (type, level) -> new VehicleEntity(type, level, vehicleClass), MobCategory.MISC)
                 .sized(HITBOX_WIDTH, HITBOX_HEIGHT)
                 .passengerAttachments(SEAT_HEIGHT)
+                .updateInterval(1)
                 .build(id));
     }
 
