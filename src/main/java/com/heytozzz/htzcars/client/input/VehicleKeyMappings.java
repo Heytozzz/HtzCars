@@ -26,6 +26,21 @@ public final class VehicleKeyMappings {
                 InputConstants.Type.KEYSYM, defaultKey, CATEGORY);
     }
 
+    /**
+     * Puts every vehicle key back to "not pressed" and drops pending clicks. The game only updates a key while it is
+     * active, so a key released outside a vehicle (for example when getting off while holding it) would stay pressed
+     * and act as if it still were the next time the player rides a vehicle.
+     */
+    public static void releaseAll() {
+        KeyMapping[] keys = {ACCELERATE, BRAKE, STEER_LEFT, STEER_RIGHT, DRIFT, TOGGLE_STEERING_MODE};
+        for (KeyMapping key : keys) {
+            key.setDown(false);
+            while (key.consumeClick()) {
+                // Discard the pending click.
+            }
+        }
+    }
+
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(ACCELERATE);
         event.register(BRAKE);

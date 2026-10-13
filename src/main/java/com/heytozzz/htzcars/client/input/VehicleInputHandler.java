@@ -19,10 +19,16 @@ public final class VehicleInputHandler {
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
-        if (player == null || minecraft.isPaused()) {
+        if (player == null) {
+            VehicleKeyMappings.releaseAll();
+            return;
+        }
+        if (minecraft.isPaused()) {
             return;
         }
         if (!(player.getVehicle() instanceof VehicleEntity vehicle) || vehicle.getControllingPassenger() != player) {
+            // Not driving: no vehicle key can count as pressed.
+            VehicleKeyMappings.releaseAll();
             return;
         }
 
