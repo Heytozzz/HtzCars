@@ -12,8 +12,9 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
- * Sound events: one engine sound per vehicle class (htzcars:vehicle.<class>.engine). The files they play are set in
- * assets/htzcars/sounds.json, so each class can get its own sound just by editing that file. Common code.
+ * Sound events: one engine sound and one drift sound per vehicle class (htzcars:vehicle.<class>.engine and
+ * htzcars:vehicle.<class>.drift). The files they play are set in assets/htzcars/sounds.json, so each class can get its
+ * own sounds just by editing that file. Common code.
  */
 public final class ModSounds {
 
@@ -21,12 +22,16 @@ public final class ModSounds {
             DeferredRegister.create(Registries.SOUND_EVENT, HtzCars.MOD_ID);
 
     private static final Map<VehicleClass, DeferredHolder<SoundEvent, SoundEvent>> ENGINES = new EnumMap<>(VehicleClass.class);
+    private static final Map<VehicleClass, DeferredHolder<SoundEvent, SoundEvent>> DRIFTS = new EnumMap<>(VehicleClass.class);
 
     static {
         for (VehicleClass vehicleClass : VehicleClass.values()) {
-            String name = "vehicle." + vehicleClass.getId() + ".engine";
-            ENGINES.put(vehicleClass, SOUND_EVENTS.register(name,
-                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(HtzCars.MOD_ID, name))));
+            String engineName = "vehicle." + vehicleClass.getId() + ".engine";
+            ENGINES.put(vehicleClass, SOUND_EVENTS.register(engineName,
+                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(HtzCars.MOD_ID, engineName))));
+            String driftName = "vehicle." + vehicleClass.getId() + ".drift";
+            DRIFTS.put(vehicleClass, SOUND_EVENTS.register(driftName,
+                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(HtzCars.MOD_ID, driftName))));
         }
     }
 
@@ -35,6 +40,10 @@ public final class ModSounds {
 
     public static DeferredHolder<SoundEvent, SoundEvent> engine(VehicleClass vehicleClass) {
         return ENGINES.get(vehicleClass);
+    }
+
+    public static DeferredHolder<SoundEvent, SoundEvent> drift(VehicleClass vehicleClass) {
+        return DRIFTS.get(vehicleClass);
     }
 
     public static void register(IEventBus modEventBus) {

@@ -2,5 +2,9 @@
   "vehicle.trail.engine": { "sounds": [ "htzcars:vehicle/engine_generic" ] },
   "vehicle.circuit.engine": { "sounds": [ "htzcars:vehicle/engine_generic" ] },
   "vehicle.frost.engine": { "sounds": [ "htzcars:vehicle/engine_generic" ] },
-  "vehicle.tide.engine": { "sounds": [ "htzcars:vehicle/engine_generic" ] }
+  "vehicle.tide.engine": { "sounds": [ "htzcars:vehicle/engine_generic" ] },
+  "vehicle.trail.drift": { "sounds": [ "htzcars:vehicle/drift_generic" ] },
+  "vehicle.circuit.drift": { "sounds": [ "htzcars:vehicle/drift_generic" ] },
+  "vehicle.frost.drift": { "sounds": [ "htzcars:vehicle/drift_generic" ] },
+  "vehicle.tide.drift": { "sounds": [ "htzcars:vehicle/drift_generic" ] }
 }

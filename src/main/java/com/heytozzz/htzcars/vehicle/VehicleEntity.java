@@ -3,6 +3,7 @@ package com.heytozzz.htzcars.vehicle;
 import com.heytozzz.htzcars.registry.ModDataComponents;
 import com.heytozzz.htzcars.registry.ModEntities;
 import com.heytozzz.htzcars.registry.ModItems;
+import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -32,6 +33,12 @@ import net.minecraft.world.phys.Vec3;
  * Common code: it must not reference client-only classes.
  */
 public class VehicleEntity extends Entity {
+
+    /**
+     * Called on every client tick for every vehicle. The client sets it (for the particles); on a server it stays empty,
+     * so the vehicle never needs to know about client-only classes.
+     */
+    private static Consumer<VehicleEntity> clientTickHook = vehicle -> { };
 
     private static final String TAG_COLOR = "Color";
     private static final String TAG_MODEL = "Model";
@@ -70,6 +77,8 @@ public class VehicleEntity extends Entity {
     private float visualTiltO;
     /** Horizontal speed in blocks per tick, measured from the real movement (so it works on every client). */
     private float observedSpeed;
+    /** Angle in degrees between the way the vehicle faces and the way it moves (positive = it moves to the left of its front). */
+    private float observedSlip;
     /** Movement of the last tick, in blocks. */
     private double observedDx;
     private double observedDz;
@@ -177,6 +186,35 @@ public class VehicleEntity extends Entity {
         return Mth.lerp(partialTick, visualSteerO, visualSteer);
     }
 
+    /** Sets what every vehicle does on each client tick. Only the client calls this. */
+    public static void setClientTickHook(Consumer<VehicleEntity> hook) {
+        clientTickHook = hook;
+    }
+
+    /** Movement of the last tick, in blocks per tick. Used for the particles. */
+    public double getObservedDx() {
+        return observedDx;
+    }
+
+    public double getObservedDz() {
+        return observedDz;
+    }
+
+    /**
+     * True while the vehicle slides sideways at speed on the ground (or on the water): a drift or a skid. It is measured
+     * from the real movement, so it is the same on every client.
+     */
+    public boolean isSkidding() {
+        return (onGround() || isInWater()) && observedSpeed > VehiclePhysics.SKID_MIN_SPEED
+                && Math.abs(observedSlip) > VehiclePhysics.SKID_MIN_SLIP_DEGREES;
+    }
+
+    /** How much the vehicle slides, from 0 (just started to skid) to 1 (full slide). */
+    public float getSkidIntensity() {
+        float range = VehiclePhysics.SKID_FULL_SLIP_DEGREES - VehiclePhysics.SKID_MIN_SLIP_DEGREES;
+        return Mth.clamp((Math.abs(observedSlip) - VehiclePhysics.SKID_MIN_SLIP_DEGREES) / range, 0.0F, 1.0F);
+    }
+
     /** Horizontal speed in blocks per tick, measured from the real movement. Used for the engine sound. */
     public float getObservedSpeed() {
         return observedSpeed;
@@ -224,6 +262,9 @@ public class VehicleEntity extends Entity {
             interpolateToServerPosition();
         }
         updateAnimationState();
+        if (level().isClientSide) {
+            clientTickHook.accept(this);
+        }
     }
 
     /**
@@ -483,6 +524,7 @@ public class VehicleEntity extends Entity {
             visualSteer = VehiclePhysics.approach(visualSteer, (float) steerTarget, VehiclePhysics.VISUAL_STEER_RESPONSE);
 
             // Lean towards the side the vehicle is turning to while it slides: the movement lags behind the facing.
+            observedSlip = 0.0F;
             float tiltTarget = 0.0F;
             if (Math.hypot(dx, dz) > VehiclePhysics.MIN_TILT_SPEED) {
                 double movementYaw = Math.toDegrees(Math.atan2(-dx, dz));
@@ -490,6 +532,7 @@ public class VehicleEntity extends Entity {
                     movementYaw += 180.0;
                 }
                 float slip = Mth.wrapDegrees((float) movementYaw - yaw);
+                observedSlip = slip;
                 float beyondDeadZone = Math.max(0.0F, Math.abs(slip) - VehiclePhysics.TILT_DEAD_ZONE_DEGREES);
                 float slipRange = VehiclePhysics.TILT_FULL_SLIP_DEGREES - VehiclePhysics.TILT_DEAD_ZONE_DEGREES;
                 tiltTarget = -Math.signum(slip) * Mth.clamp(beyondDeadZone / slipRange, 0.0F, 1.0F)

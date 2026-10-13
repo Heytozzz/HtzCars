@@ -1,6 +1,7 @@
 package com.heytozzz.htzcars.client;
 
 import com.heytozzz.htzcars.HtzCars;
+import com.heytozzz.htzcars.client.effects.VehicleSkidEffects;
 import com.heytozzz.htzcars.client.input.VehicleInputHandler;
 import com.heytozzz.htzcars.client.input.VehicleKeyMappings;
 import com.heytozzz.htzcars.client.model.GokartModel;
@@ -10,6 +11,7 @@ import com.heytozzz.htzcars.client.render.VehicleRenderer;
 import com.heytozzz.htzcars.client.sound.VehicleSoundHandler;
 import com.heytozzz.htzcars.registry.ModEntities;
 import com.heytozzz.htzcars.registry.ModItems;
+import com.heytozzz.htzcars.vehicle.VehicleEntity;
 import com.heytozzz.htzcars.vehicle.VehicleClass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
@@ -40,6 +42,8 @@ public class HtzCarsClient {
         NeoForge.EVENT_BUS.addListener(VehicleInputHandler::onClientTick);
         NeoForge.EVENT_BUS.addListener(VehicleSoundHandler::onEntityJoinLevel);
         NeoForge.EVENT_BUS.addListener(RiderBodyHandler::onPlayerTick);
+        // The vehicles are common code: they call this on every client tick, and only the client has something to call.
+        VehicleEntity.setClientTickHook(VehicleSkidEffects::tick);
     }
 
     private static void onRegisterLayerDefinitions(EntityRenderersEvent.RegisterLayerDefinitions event) {

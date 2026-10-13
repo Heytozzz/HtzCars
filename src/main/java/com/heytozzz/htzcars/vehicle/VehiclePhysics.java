@@ -70,6 +70,11 @@ public final class VehiclePhysics {
     public static final float TILT_RESPONSE_DEGREES = 2.0F;
     public static final double MIN_TILT_SPEED = 0.05;
 
+    /** Skidding (drift sound and particles): minimum angle between the vehicle and its movement, the angle that gives the full effect, and minimum speed. */
+    public static final float SKID_MIN_SLIP_DEGREES = 12.0F;
+    public static final float SKID_FULL_SLIP_DEGREES = 45.0F;
+    public static final double SKID_MIN_SPEED = 0.12;
+
     /**
      * Gravity, in blocks per tick squared. It is our own value on purpose: a plain entity has no gravity of its own
      * (mobs, items and boats each define theirs), so Entity.getGravity() cannot be used here.
