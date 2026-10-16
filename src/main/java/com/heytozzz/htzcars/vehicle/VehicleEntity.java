@@ -3,6 +3,8 @@ package com.heytozzz.htzcars.vehicle;
 import com.heytozzz.htzcars.registry.ModDataComponents;
 import com.heytozzz.htzcars.registry.ModEntities;
 import com.heytozzz.htzcars.registry.ModItems;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -49,6 +51,13 @@ public class VehicleEntity extends Entity {
             SynchedEntityData.defineId(VehicleEntity.class, EntityDataSerializers.INT);
 
     private final VehicleClass vehicleClass;
+
+    /** A modifier that is active on this vehicle and the ticks it has left. */
+    private record ActiveModifier(VehicleModifier modifier, int remainingTicks) {
+    }
+
+    /** Modifiers (boosts, slowdowns...) that are active on this vehicle. */
+    private final List<ActiveModifier> activeModifiers = new ArrayList<>();
 
     // Driver input, written by the client of the driver every tick (never by the server).
     private DriverInput input = DriverInput.NONE;
@@ -169,6 +178,21 @@ public class VehicleEntity extends Entity {
             return InteractionResult.SUCCESS;
         }
         return player.startRiding(this) ? InteractionResult.CONSUME : InteractionResult.PASS;
+    }
+
+    /**
+     * Applies a modifier to this vehicle for a number of ticks (20 ticks = 1 second). Modifiers stack by multiplying.
+     * Call it where the vehicle is simulated: on the client of the driver, or on the server when nobody drives it.
+     */
+    public void addModifier(VehicleModifier modifier, int durationTicks) {
+        if (durationTicks > 0) {
+            activeModifiers.add(new ActiveModifier(modifier, durationTicks));
+        }
+    }
+
+    /** Removes every modifier from this vehicle. */
+    public void clearModifiers() {
+        activeModifiers.clear();
     }
 
     /** Called every tick by the client of the driver. */
@@ -342,6 +366,27 @@ public class VehicleEntity extends Entity {
         return false;
     }
 
+    /** Combines the active modifiers into one and counts their time down; the ones that run out are removed. */
+    private VehicleModifier combineActiveModifiers() {
+        double maxSpeedFactor = 1.0;
+        double accelerationFactor = 1.0;
+        double brakeFactor = 1.0;
+        double gripFactor = 1.0;
+        for (int i = activeModifiers.size() - 1; i >= 0; i--) {
+            ActiveModifier active = activeModifiers.get(i);
+            maxSpeedFactor *= active.modifier().maxSpeedFactor();
+            accelerationFactor *= active.modifier().accelerationFactor();
+            brakeFactor *= active.modifier().brakeFactor();
+            gripFactor *= active.modifier().gripFactor();
+            if (active.remainingTicks() <= 1) {
+                activeModifiers.remove(i);
+            } else {
+                activeModifiers.set(i, new ActiveModifier(active.modifier(), active.remainingTicks() - 1));
+            }
+        }
+        return new VehicleModifier(maxSpeedFactor, accelerationFactor, brakeFactor, gripFactor);
+    }
+
     /** One tick of arcade driving. Runs only where the vehicle is simulated (see isControlledByLocalInstance). */
     private void drive() {
         Vec3 motion = getDeltaMovement();
@@ -361,6 +406,15 @@ public class VehicleEntity extends Entity {
             maxReverseSpeed *= VehiclePhysics.FROST_LAND_SPEED_FACTOR;
         }
 
+        // Modifiers (boosts, slowdowns...) added by other parts of the mod change the numbers used below.
+        VehicleModifier modifiers = combineActiveModifiers();
+        maxSpeed *= modifiers.maxSpeedFactor();
+        maxReverseSpeed *= modifiers.maxSpeedFactor();
+        double acceleration = VehiclePhysics.ACCELERATION * modifiers.accelerationFactor();
+        double reverseAcceleration = VehiclePhysics.REVERSE_ACCELERATION * modifiers.accelerationFactor();
+        double brakeForce = VehiclePhysics.BRAKE_FORCE * modifiers.brakeFactor();
+        float gripFactor = (float) modifiers.gripFactor();
+
         // The movement goes where the vehicle faces, except while it slides (drift).
         if (!sliding) {
             moveYaw = getYRot();
@@ -376,15 +430,15 @@ public class VehicleEntity extends Entity {
             }
         } else if (input.brake()) {
             if (speed > VehiclePhysics.STOP_THRESHOLD) {
-                speed = Math.max(0.0, speed - VehiclePhysics.BRAKE_FORCE);
+                speed = Math.max(0.0, speed - brakeForce);
             } else {
-                speed = Math.max(-maxReverseSpeed, speed - VehiclePhysics.REVERSE_ACCELERATION);
+                speed = Math.max(-maxReverseSpeed, speed - reverseAcceleration);
             }
         } else if (input.accelerate()) {
             if (speed < 0.0) {
-                speed = Math.min(0.0, speed + VehiclePhysics.BRAKE_FORCE);
+                speed = Math.min(0.0, speed + brakeForce);
             } else if (speed < maxSpeed) {
-                speed = Math.min(maxSpeed, speed + VehiclePhysics.ACCELERATION);
+                speed = Math.min(maxSpeed, speed + acceleration);
             } else {
                 speed = Math.max(maxSpeed, speed - VehiclePhysics.OVERSPEED_DECELERATION);
             }
@@ -463,9 +517,9 @@ public class VehicleEntity extends Entity {
             speed = Math.max(-maxReverseSpeed, speed * Math.cos(Math.toRadians(slip)));
         } else if (drifting) {
             sliding = true;
-            moveYaw = Mth.wrapDegrees(moveYaw + Mth.wrapDegrees(newYaw - moveYaw) * VehiclePhysics.DRIFT_GRIP);
+            moveYaw = Mth.wrapDegrees(moveYaw + Mth.wrapDegrees(newYaw - moveYaw) * Mth.clamp(VehiclePhysics.DRIFT_GRIP * gripFactor, 0.0F, 1.0F));
         } else if (sliding) {
-            moveYaw = Mth.wrapDegrees(moveYaw + Mth.wrapDegrees(newYaw - moveYaw) * VehiclePhysics.DRIFT_RECOVER_GRIP);
+            moveYaw = Mth.wrapDegrees(moveYaw + Mth.wrapDegrees(newYaw - moveYaw) * Mth.clamp(VehiclePhysics.DRIFT_RECOVER_GRIP * gripFactor, 0.0F, 1.0F));
             if (Math.abs(Mth.wrapDegrees(newYaw - moveYaw)) < VehiclePhysics.SLIP_END_DEGREES) {
                 sliding = false;
                 moveYaw = newYaw;

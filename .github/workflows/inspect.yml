@@ -1,4 +1,5 @@
 # TEMPORARY workflow: runs the temporary Gradle tasks inspectApi / findClass and prints the result in the log.
+# The optional filter input keeps the log short by printing only the matching member lines.
 name: Inspect API
 
 on:
@@ -14,6 +15,11 @@ on:
       value:
         description: 'findClass: simple class name (e.g. Mod). inspectApi: fully qualified class name (nested classes with $). Several values can be separated by commas.'
         required: true
+        type: string
+      filter:
+        description: 'Optional regex (extended, case-insensitive): only the member lines that match are printed, to keep the log short. Leave empty to print everything.'
+        required: false
+        default: ''
         type: string
 
 permissions:
@@ -41,6 +47,7 @@ jobs:
         env:
           INSPECT_TASK: ${{ inputs.task }}
           INSPECT_VALUE: ${{ inputs.value }}
+          INSPECT_FILTER: ${{ inputs.filter }}
         run: |
           # The value is passed through an environment variable, so "$" in nested class names needs no escaping.
           # Several values separated by commas are inspected one after another; a failure does not stop the others.
@@ -57,9 +64,15 @@ jobs:
             fi
             echo "##### $INSPECT_TASK: $value"
             if [ "$INSPECT_TASK" = "inspectApi" ]; then
-              gradle inspectApi "-PclassName=$value" --console=plain -q || status=1
+              gradle inspectApi "-PclassName=$value" --console=plain -q > inspect-output.txt 2>&1 || status=1
             else
-              gradle findClass "-PsimpleName=$value" --console=plain -q || status=1
+              gradle findClass "-PsimpleName=$value" --console=plain -q > inspect-output.txt 2>&1 || status=1
+            fi
+            if [ -n "$INSPECT_FILTER" ]; then
+              # Keep the class header and error lines, plus the member lines that match the filter.
+              grep -E -i -e '^(===|Exception|Caused by|.*GradleException)' -e "$INSPECT_FILTER" inspect-output.txt || true
+            else
+              cat inspect-output.txt
             fi
           done
           exit $status

@@ -1,6 +1,8 @@
 package com.heytozzz.htzcars;
 
+import com.heytozzz.htzcars.config.CommonConfig;
 import com.heytozzz.htzcars.config.ServerConfig;
+import com.heytozzz.htzcars.registry.ModConditions;
 import com.heytozzz.htzcars.registry.ModCreativeTabs;
 import com.heytozzz.htzcars.registry.ModDataComponents;
 import com.heytozzz.htzcars.registry.ModEntities;
@@ -28,7 +30,8 @@ public class HtzCars {
     public HtzCars(IEventBus modEventBus, ModContainer modContainer) {
         LOGGER.info("HtzCars is starting (mod id: {})", MOD_ID);
 
-        // Per-world settings, synced from the server to the clients.
+        // Settings read at the start (the crafting switches), and per-world settings synced from the server to the clients.
+        modContainer.registerConfig(ModConfig.Type.COMMON, CommonConfig.SPEC);
         modContainer.registerConfig(ModConfig.Type.SERVER, ServerConfig.SPEC);
 
         // The data component is registered first because the creative tab builds stacks that use it.
@@ -37,5 +40,6 @@ public class HtzCars {
         ModItems.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         ModSounds.register(modEventBus);
+        ModConditions.register(modEventBus);
     }
 }
