@@ -3,6 +3,8 @@
 build/
 !gradle/wrapper/gradle-wrapper.properties
 
+backups
+
 # Minecraft dev runs
 run/
 runs/

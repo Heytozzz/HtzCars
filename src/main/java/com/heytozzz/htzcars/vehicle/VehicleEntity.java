@@ -438,7 +438,7 @@ public class VehicleEntity extends Entity {
             if (speed < 0.0) {
                 speed = Math.min(0.0, speed + brakeForce);
             } else if (speed < maxSpeed) {
-                speed = Math.min(maxSpeed, speed + acceleration);
+                speed = Math.min(maxSpeed, speed + acceleration * VehiclePhysics.accelerationFactor(speed));
             } else {
                 speed = Math.max(maxSpeed, speed - VehiclePhysics.OVERSPEED_DECELERATION);
             }

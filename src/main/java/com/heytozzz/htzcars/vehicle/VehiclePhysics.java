@@ -10,8 +10,16 @@ public final class VehiclePhysics {
     public static final double MAX_SPEED = 0.6;
     /** Top speed in reverse. */
     public static final double MAX_REVERSE_SPEED = 0.25;
-    /** Speed gained per tick while accelerating. */
-    public static final double ACCELERATION = 0.02;
+    /**
+     * Speed gained per tick while accelerating from a standstill. The acceleration then shrinks as the speed grows
+     * (see accelerationFactor), so the top speed takes about 8 seconds to reach and each gear is harder to reach
+     * than the one before it.
+     */
+    public static final double ACCELERATION = 0.0075;
+    /** Fraction of ACCELERATION that is left at top speed (the last gears are slow to reach, but not impossible). */
+    public static final double ACCELERATION_MIN_FACTOR = 0.25;
+    /** How fast the acceleration drops with the speed: 1 = in a straight line, higher = it keeps strong for longer and drops late. */
+    public static final double ACCELERATION_CURVE_POWER = 1.25;
     /** Speed gained per tick while reversing. */
     public static final double REVERSE_ACCELERATION = 0.015;
     /** Speed lost per tick while braking. */
@@ -111,6 +119,17 @@ public final class VehiclePhysics {
     public static final float VISUAL_STEER_RESPONSE = 0.15F;
 
     private VehiclePhysics() {
+    }
+
+    /**
+     * Multiplier of ACCELERATION at this forward speed: 1 from a standstill, down to ACCELERATION_MIN_FACTOR at the
+     * base top speed (MAX_SPEED) and above it. It is measured against MAX_SPEED, not against the current top speed,
+     * so it matches the gears of the engine sound (see VehicleGearbox).
+     */
+    public static double accelerationFactor(double speed) {
+        double fraction = Math.min(1.0, Math.max(0.0, speed / MAX_SPEED));
+        return ACCELERATION_MIN_FACTOR
+                + (1.0 - ACCELERATION_MIN_FACTOR) * Math.pow(1.0 - fraction, ACCELERATION_CURVE_POWER);
     }
 
     /** Moves value towards target by at most step. */
