@@ -4,7 +4,7 @@ import com.heytozzz.htzcars.HtzCars;
 import com.heytozzz.htzcars.client.effects.VehicleSkidEffects;
 import com.heytozzz.htzcars.client.input.VehicleInputHandler;
 import com.heytozzz.htzcars.client.input.VehicleKeyMappings;
-import com.heytozzz.htzcars.client.model.GokartModel;
+import com.heytozzz.htzcars.client.model.VehicleModels;
 import com.heytozzz.htzcars.client.render.RiderBodyHandler;
 import com.heytozzz.htzcars.client.render.VehicleItemRenderer;
 import com.heytozzz.htzcars.client.render.VehicleRenderer;
@@ -47,12 +47,14 @@ public class HtzCarsClient {
     }
 
     private static void onRegisterLayerDefinitions(EntityRenderersEvent.RegisterLayerDefinitions event) {
-        event.registerLayerDefinition(GokartModel.LAYER_LOCATION, GokartModel::createBodyLayer);
+        for (VehicleModels.Entry entry : VehicleModels.distinctModels()) {
+            event.registerLayerDefinition(entry.layerLocation(), entry.layer());
+        }
     }
 
     private static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         for (VehicleClass vehicleClass : VehicleClass.values()) {
-            event.registerEntityRenderer(ModEntities.get(vehicleClass).get(), VehicleRenderer::new);
+            event.registerEntityRenderer(ModEntities.get(vehicleClass).get(), context -> new VehicleRenderer(context, vehicleClass));
         }
     }
 

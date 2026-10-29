@@ -1,67 +1,21 @@
 package com.heytozzz.htzcars.client.model;
 
-import com.heytozzz.htzcars.HtzCars;
-import com.heytozzz.htzcars.vehicle.VehicleEntity;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.model.EntityModel;
-import net.minecraft.client.model.geom.ModelLayerLocation;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.model.geom.builders.CubeDeformation;
 import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
-import net.minecraft.resources.ResourceLocation;
 
 /**
  * Temporary go-kart model, used by every vehicle class until the final models are in.
  * Adapted from the Blockbench export (5.2.2): the part names are kept, and the pivots of the two front wheels were moved
- * to the center of each wheel (the geometry is identical). Client-only code.
+ * to the center of each wheel (the geometry is identical). Only the shape lives here: how it is animated and drawn is
+ * in VehicleModel. Client-only code.
  */
-public class GokartModel extends EntityModel<VehicleEntity> {
+public final class GokartModel {
 
-    public static final ModelLayerLocation LAYER_LOCATION =
-            new ModelLayerLocation(ResourceLocation.fromNamespaceAndPath(HtzCars.MOD_ID, "gokart"), "main");
-
-    /** Radius of the wheels in blocks (4 and 3 model pixels). */
-    private static final float BACK_WHEEL_RADIUS = 0.25F;
-    private static final float FRONT_WHEEL_RADIUS = 0.1875F;
-    /** The steering wheel turns this many times more than the front wheels. */
-    private static final float STEERING_WHEEL_RATIO = 3.0F;
-
-    private final ModelPart root;
-    private final ModelPart wheelBackLeft;
-    private final ModelPart wheelBackRight;
-    private final ModelPart wheelFrontLeft;
-    private final ModelPart wheelFrontRight;
-    private final ModelPart steeringWheelDisc;
-
-    public GokartModel(ModelPart root) {
-        this.root = root;
-        ModelPart body = root.getChild("body");
-        this.wheelBackLeft = body.getChild("wheel_bl");
-        this.wheelBackRight = body.getChild("wheel_br");
-        this.wheelFrontLeft = body.getChild("wheel_fl");
-        this.wheelFrontRight = body.getChild("wheel_fr");
-        this.steeringWheelDisc = body.getChild("steering_wheel").getChild("steering_wheel_tilt").getChild("steering_wheel_disc");
-    }
-
-    /**
-     * Sets the pose of the moving parts. rolledDistance: blocks rolled so far; steerAngle: angle of the front wheels
-     * in radians (positive = right). If a wheel or the steering wheel turns the wrong way, flip its sign here.
-     */
-    public void setAngles(float rolledDistance, float steerAngle) {
-        float backRoll = rolledDistance / BACK_WHEEL_RADIUS;
-        float frontRoll = rolledDistance / FRONT_WHEEL_RADIUS;
-        wheelBackLeft.xRot = backRoll;
-        wheelBackRight.xRot = backRoll;
-        wheelFrontLeft.xRot = frontRoll;
-        wheelFrontRight.xRot = frontRoll;
-        wheelFrontLeft.yRot = steerAngle;
-        wheelFrontRight.yRot = steerAngle;
-        steeringWheelDisc.zRot = -steerAngle * STEERING_WHEEL_RATIO;
+    private GokartModel() {
     }
 
     public static LayerDefinition createBodyLayer() {
@@ -111,15 +65,5 @@ public class GokartModel extends EntityModel<VehicleEntity> {
         steeringWheelTilt.addOrReplaceChild("steering_wheel_disc", CubeListBuilder.create().texOffs(68, 71).addBox(-2.5F, -2.5F, -1.0F, 5.0F, 5.0F, 1.0F, CubeDeformation.NONE), PartPose.ZERO);
 
         return LayerDefinition.create(meshDefinition, 128, 128);
-    }
-
-    @Override
-    public void setupAnim(VehicleEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
-        // No animation yet.
-    }
-
-    @Override
-    public void renderToBuffer(PoseStack poseStack, VertexConsumer consumer, int packedLight, int packedOverlay, int color) {
-        root.render(poseStack, consumer, packedLight, packedOverlay, color);
     }
 }
